@@ -9,3 +9,5 @@ main : $(OBJECTS)
 
 graph.o : graph.h
 
+clean:
+	rm -f $(OBJECTS) main

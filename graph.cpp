@@ -15,7 +15,7 @@
 
 edge::edge( int n1, int n2, float _reliability, float _cost )
 {
-    n = {n1,n2};
+    n[0] = n1;n[1] = n2;
     reliability = _reliability;
     cost = _cost;
 }
