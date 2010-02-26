@@ -23,6 +23,7 @@ int main(int argv, char **argc)
 	int gErr = network.loadEdgeData( argc[1] );
 	if ( gErr==0 )
 	{
+		network.estReliabilityMC(1,4 );
 	}
 	else
 	{

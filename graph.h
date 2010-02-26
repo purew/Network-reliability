@@ -9,7 +9,8 @@
 #ifndef _GRAPH_H_
 #define _GRAPH_H_
 
-#include <list>
+#include <vector>
+
 
 enum errors {   NO_ERROR=0,
                 DUPLICATE,
@@ -23,11 +24,21 @@ enum errors {   NO_ERROR=0,
 class edge
 {
 public:
+	/** Constructor takes two nodes as argument, and optionally reliability and cost. */
     edge( int n1, int n2, float reliability = 0.8, float cost=1.0 );
+    /** Returns an array with two elements containing the connected nodes. */
     const int* getNodes() { return n; };
+	/** Reset the node to working condition. */
+	void reset() {working = true;};
+	bool isWorking() {return working;};
+	void setWorking( bool status ) {working = status;};
+	float getCost() {return cost;};
+	float getReliability() {return reliability;};
 
-private:
     int n[2];
+private:
+
+	bool working;
 
     float cost;
     float reliability;
@@ -38,10 +49,38 @@ private:
 class graph
 {
 public:
+	/** Load a nwk-file in the format:
+	x1 x2
+	x1 x3
+	etc..  It is assumed that the file does not contain duplicates and that the id's x1,x2 etc
+	are positive integers which when sorted contain no gaps (i.e. 1 2 3  instead of 1 2 7).
+	Also, it is not allowed to have edges returning to the same node.*/
     int loadEdgeData( char* file );
 
+    /** Perform Monte Carlo simulation to estimate the reliability of the network between two nodes.
+    Takes t as an optional argument which is the number of iterations to calculate. */
+    float estReliabilityMC( int n1, int n2, int t=100 );
+    float getVariance() {return varianceOfLastReliabilitySimulation;};
+
+
+    /** Prints the edge-data in raw format. */
+    void printEdges();
+
+    graph() {};
+    ~graph();
+
 private:
-    std::list<edge> edges;
+
+	/** Helper function for estReliabilityMC, contains the recursion.
+		nc is the current node, and nf is the target. */
+	bool unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bool *visitedNodes );
+
+    int biggestNodeId;
+
+    std::vector<edge*> *connectingEdges; 	//!< Array of lists of edge*, arranged after nodes
+	std::vector<edge*> edges;				//!< All edge*s
+
+    float varianceOfLastReliabilitySimulation;
 };
 
 
