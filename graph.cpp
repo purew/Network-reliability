@@ -43,6 +43,17 @@ float graph::estReliabilityMC( int n1, int n2, int t )
 		for ( it = edges.begin(); it < edges.end() ; ++it )
 				(*it)->reset();
 
+		// Make some edges fail, with i.i.d. bernoulli-RV's.
+		for ( it = edges.begin(); it < edges.end() ; ++it )
+		{
+			if ( randomNbrGenerator() > (*it)->getReliability() )
+			{
+				// This link failed!
+				(*it)->setWorking( false );
+			}
+
+		}
+
 		// Keep an array for all visited nodes.
 		bool nodeVisited[biggestNodeId];
 		for ( int i=0; i<biggestNodeId; ++i )

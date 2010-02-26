@@ -11,6 +11,7 @@
 
 #include <vector>
 
+#include "Mersenne-1.1/MersenneTwister.h"
 
 enum errors {   NO_ERROR=0,
                 DUPLICATE,
@@ -33,7 +34,7 @@ public:
 	bool isWorking() {return working;};
 	void setWorking( bool status ) {working = status;};
 	float getCost() {return cost;};
-	float getReliability() {return reliability;};
+	double getReliability() {return reliability;};
 
     int n[2];
 private:
@@ -41,7 +42,7 @@ private:
 	bool working;
 
     float cost;
-    float reliability;
+    double reliability;
 };
 
 /** Class for keeping track of the graph.
@@ -59,7 +60,7 @@ public:
 
     /** Perform Monte Carlo simulation to estimate the reliability of the network between two nodes.
     Takes t as an optional argument which is the number of iterations to calculate. */
-    float estReliabilityMC( int n1, int n2, int t=100 );
+    float estReliabilityMC( int n1, int n2, int t=1000 );
     float getVariance() {return varianceOfLastReliabilitySimulation;};
 
 
@@ -81,6 +82,7 @@ private:
 	std::vector<edge*> edges;				//!< All edge*s
 
     float varianceOfLastReliabilitySimulation;
+    MTRand randomNbrGenerator;
 };
 
 
