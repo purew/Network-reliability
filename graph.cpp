@@ -1,3 +1,10 @@
+/*
+	Copyright (c) 2010 Anders Bennehag
+	Licensed under the MIT license
+	http://www.opensource.org/licenses/mit-license.php
+*/
+
+
 
 #include "graph.h"
 #include <iostream>

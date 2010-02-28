@@ -3,4 +3,11 @@
 A research project dedicated to examining the reliability of certain network
 structures using optimization techniques such as Ant Colony Optimization.
 
+If the graphical frontend is wanted, glfw, glpng, freetype6 are required libraries.
+
+
 By Anders Bennehag, Hong Kong University of Science and Technology
+
+Copyright (c) 2010 Anders Bennehag
+Licensed under the MIT license
+http://www.opensource.org/licenses/mit-license.php

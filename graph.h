@@ -3,6 +3,13 @@
  * Classes for handling the structure of the network. They are assumed
  * to be static once created but this assumption is purely for faster
  * execution and simplicity of code.
+
+
+ 	Copyright (c) 2010 Anders Bennehag
+	Licensed under the MIT license
+	http://www.opensource.org/licenses/mit-license.php
+
+
  */
 
 
@@ -26,7 +33,7 @@ class edge
 {
 public:
 	/** Constructor takes two nodes as argument, and optionally reliability and cost. */
-    edge( int n1, int n2, float reliability = 0.8, float cost=1.0 );
+    edge( int n1, int n2, float reliability = 0.6, float cost=1.0 );
     /** Returns an array with two elements containing the connected nodes. */
     const int* getNodes() { return n; };
 	/** Reset the node to working condition. */
