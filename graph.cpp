@@ -38,7 +38,7 @@ edge::edge( int n1, int n2, float _reliability, float _cost )
 ////////////////////////////////////////////////////////////
 
 
-float graph::estReliabilityMC( int n1, int n2, int t )
+int graph::estReliabilityMC( int t )
 {
 	// TODO, implement threading of this part? If so, make copies of connectedEdges (REAL COPIES, not just the pointers)
 
@@ -102,6 +102,7 @@ float graph::estReliabilityMC( int n1, int n2, int t )
 	}
 	std::cout << "Two-terminal reliability = " << (float)(workingTwoTerminalNetworks)/t << ", calculated from "<< t <<" simulations\n";
 	std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t << std::endl;
+	return NO_ERROR;
 }
 
 bool graph::unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bool *visitedNodes )
@@ -113,7 +114,6 @@ bool graph::unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bo
 	for ( it = connectingEdges[nc].begin(); it < connectingEdges[nc].end() ; ++it )
 	{
 		//std::cout << "  Checking "<<(*it)->n[0]<<(*it)->n[1]<<" Status="<<(*it)->isWorking()<<std::endl;
-		edge* e = *it;
 		if ( (*it)->isWorking() )
 		{
 			int n1=(*it)->n[0];
@@ -148,7 +148,9 @@ void graph::printEdges()
 
 }
 
-int graph::loadEdgeData( char* filename )
+enum filetype { TYPE_EDGES };
+
+int graph::loadEdgeData( const char* filename )
 {
 
 
@@ -159,6 +161,54 @@ int graph::loadEdgeData( char* filename )
 
 		biggestNodeId=0;
         std::string line;
+        getline( file, line );
+        double reliabilityPerNode;
+
+        // Determine type of the file
+        if ( line.find("type") == std::string::npos )
+		{
+			std::cout << "Incorrect file, could not find a type-specifier\n";
+			return FILE_OPEN_ERROR;
+		}
+		int filetype;
+		if ( line.find("edges") != std::string::npos )
+        {
+        	filetype = TYPE_EDGES;
+
+        	// Find out between what nodes to perform reliability calculation
+			getline( file, line );
+			if ( line.find("start:") == std::string::npos)
+			{
+				std::cout << "No start-field found in file, aborting\n";
+				return FILE_OPEN_ERROR;
+			}
+			int pos = line.find(" ");
+			line.erase( 0, pos+1 );
+			n1 = atoi( line.c_str() );
+
+			getline( file, line);
+			if ( line.find("end:") == std::string::npos)
+			{
+				std::cout << "No end-field found in file, aborting\n";
+				return FILE_OPEN_ERROR;
+			}
+			pos = line.find(" ");
+			line.erase( 0, pos+1 );
+			n2 = atoi( line.c_str() );
+
+			// Find out the reliability of each node
+			getline( file, line );
+			if ( line.find("prob:") == std::string::npos)
+			{
+				std::cout << "No prob-field found in file, aborting\nline:" << line;
+				return FILE_OPEN_ERROR;
+			}
+			pos = line.find(" ");
+			line.erase( 0, pos+1 );
+			reliabilityPerNode = atof( line.c_str() );
+			std::cout << line << " "<<reliabilityPerNode;
+
+        }
 
         while ( file.eof() == 0 )
         {
@@ -177,7 +227,7 @@ int graph::loadEdgeData( char* filename )
                 int n2 = atoi( line.c_str() );
 
                 // Add the edge to our vector
-                edge* e = new edge( n1, n2 );
+                edge* e = new edge( n1, n2, reliabilityPerNode );
                 edges.push_back( e );
 
                 // For later optimization (let each node know what edges are connecting)

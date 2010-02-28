@@ -17,8 +17,8 @@
 #define _GRAPH_H_
 
 #include <vector>
-
-#include "Mersenne-1.1/MersenneTwister.h"
+#include <string>
+#include "MersenneTwister.h"
 
 enum errors {   NO_ERROR=0,
                 DUPLICATE,
@@ -63,12 +63,14 @@ public:
 	x1 x3
 	etc..  It is assumed that the file does not contain duplicates and that the id's x1,x2 etc
 	are positive integers which when sorted contain no gaps (i.e. 1 2 3  instead of 1 2 7).
-	Also, it is not allowed to have edges returning to the same node.*/
-    int loadEdgeData( char* file );
+	Also, it is not allowed to have edges returning to the same node.
+
+	Return NO_ERROR on success.*/
+    int loadEdgeData( const char* filename);
 
     /** Perform Monte Carlo simulation to estimate the reliability of the network between two nodes.
     Takes t as an optional argument which is the number of iterations to calculate. */
-    float estReliabilityMC( int n1, int n2, int t=1000 );
+    int estReliabilityMC( int t=1000 );
     float getVariance() {return varianceOfLastReliabilitySimulation;};
 
 
@@ -84,10 +86,12 @@ private:
 		nc is the current node, and nf is the target. */
 	bool unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bool *visitedNodes );
 
-    int biggestNodeId;
+    int biggestNodeId;	//!< Used for keeping track of the nodes (TODO, a vector would be better)
 
     std::vector<edge*> *connectingEdges; 	//!< Array of lists of edge*, arranged after nodes
 	std::vector<edge*> edges;				//!< All edge*s
+
+	int n1,n2;			//!< Calculate reliability between these two nodes
 
     float varianceOfLastReliabilitySimulation;
     MTRand randomNbrGenerator;

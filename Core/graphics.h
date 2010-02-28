@@ -25,7 +25,7 @@ enum G_Error {
 		G_GLPNG_ERROR,
 		G_GLU_ERROR,
 		G_POINTER_ERROR,
-		G_NO_SUPPORTED_FORMAT,
+		G_NO_SUPPORTED_FORMAT
 };
 
 /** The class used for texture encapsulation.

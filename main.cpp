@@ -12,26 +12,27 @@
 
 #include <iostream>
 #include <cstring>
+#include <string>
 #include "graph.h"
 #include "Core/graphics.h"
 #include "Core/GLFT_Font.hpp"
-
+#include "misc.h"
 
 
 int main(int argv, char **argc)
 {
-	graph network;
-	if (argv == 1)
-	{
-		std::cout << "Supply a filename to a network file, for example \"data/1_cell.nwk\"\n";
-		return 0;
-	}
-	std::cout << "Trying to load "<< argc[1] << std::endl;
+	sArgs args = parseArguments( argv, argc );
 
-	int gErr = network.loadEdgeData( argc[1] );
-	if ( gErr==0 )
+	graph network;
+	std::cout << "Trying to load "<< args.filename << std::endl;
+
+	// Try loading the file
+	if ( network.loadEdgeData( args.filename.c_str() ) == NO_ERROR )
 	{
-		network.estReliabilityMC(0,3, 100000 );
+		std::cout << "Estimating reliability...\n";
+		if ( network.estReliabilityMC( 100000 ) != NO_ERROR )
+			std::cout << "Something went wrong in the reliability estimation\n";
+
 
 		// Do we want a window app?
 		if ( argv >= 3 && strcmp(argc[2], "-window" )==0 )
@@ -49,12 +50,7 @@ int main(int argv, char **argc)
 
 			}
 		}
-
-
 	}
-	else
-	{
-		std::cout << "Problem with loading of file\n";
-	}
+
 	return 0;
 }

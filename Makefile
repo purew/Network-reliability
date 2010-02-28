@@ -6,8 +6,8 @@ CXXFLAGS= -Wall  `freetype-config --cflags`
 CFLAGS 	= $(CXXFLAGS)
 LDFLAGS+= -lGL -lglfw -lglpng -lpthread -lGLU `freetype-config --libs`
 
-DEPS = graph.h Core/GLFT_Font.h Core/graphics.h
-OBJECTS = graph.o main.o Core/GLFT_Font.o Core/graphics.o
+DEPS = graph.h Core/GLFT_Font.h Core/graphics.h misc.h
+OBJECTS = graph.o  Core/GLFT_Font.o Core/graphics.o misc.o main.o
 
 
 # Make the object-files depend on the c- and h-files
