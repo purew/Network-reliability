@@ -42,7 +42,8 @@ float graph::estReliabilityMC( int n1, int n2, int t )
 {
 	// TODO, implement threading of this part? If so, make copies of connectedEdges (REAL COPIES, not just the pointers)
 
-	int workingNetworks=0;
+	int workingTwoTerminalNetworks=0;
+	int workingAllTerminalNetworks=0;
 	for ( int i=0;i<t; ++i )
 	{
 		// Reset all edges to working state
@@ -62,63 +63,80 @@ float graph::estReliabilityMC( int n1, int n2, int t )
 		}
 
 		// Keep an array for all visited nodes.
-		bool nodeVisited[biggestNodeId];
-		for ( int i=0; i<biggestNodeId; ++i )
+		bool nodeVisited[biggestNodeId+1];
+		for ( int i=0; i<=biggestNodeId; ++i )
 		{
 			nodeVisited[i] = false;
 		}
-		nodeVisited[n1] = true;
 
-		// for each of the connecting and working edges in connectingEdges[n1]
-		bool working = unfoldGraph( n1, n2, connectingEdges,nodeVisited );
-		if (working)
-			++workingNetworks;
+		// Basic failsafe
+		if ( n1>biggestNodeId || n1<0 || n2>biggestNodeId || n2<0 )
+		{
+			std::cout << "In estReliabilityMC: Illegal node-id.\n\tAborting\n";
+			return ILLEGAL_NODE_ID;
+		}
+
+		// Is this a working two-terminal instance of the problem?
+		int result = unfoldGraph( n1, n2, connectingEdges,nodeVisited );
+		if (nodeVisited[n2])
+			++workingTwoTerminalNetworks;
+		// Is it a working all-terminal instance? (Are all nodes visited?)
+		int allterminal=1;
+		for ( int i=0; i<biggestNodeId; ++i )
+			if ( nodeVisited[i]==false )
+				allterminal=0;
+		workingAllTerminalNetworks += allterminal;
+
+
+		// DEBUGGING
+	/*	std::cout << "\n******************\nWorking nodes:\n";
+		for ( it = edges.begin(); it < edges.end() ; ++it )
+				if ( (*it)->isWorking() )
+					std::cout << (*it)->n[0] << " " << (*it)->n[1] << std::endl;
+		std::cout << "Visited nodes\n";
+		for (int i=0;i<biggestNodeId; ++i)
+			if (nodeVisited[i])
+				std::cout << i << " ";
+		std::cin.get();*/
+
 	}
-	std::cout << "Reliability = " << (float)(workingNetworks)/t << ", calculated from "<< t <<" simulations\n";
+	std::cout << "Two-terminal reliability = " << (float)(workingTwoTerminalNetworks)/t << ", calculated from "<< t <<" simulations\n";
+	std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t << std::endl;
 }
 
 bool graph::unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bool *visitedNodes )
 {
+	//std::cout << "Iterating over edges connected to " << nc << std::endl;
+	visitedNodes[nc] = true;
+
 	std::vector<edge*>::iterator it;
-	for ( it = connectingEdges[nf].begin(); it < connectingEdges[nf].end() ; ++it )
+	for ( it = connectingEdges[nc].begin(); it < connectingEdges[nc].end() ; ++it )
 	{
-		//std::cout << "Iterating over edges connected to " << nc << std::endl;
+		//std::cout << "  Checking "<<(*it)->n[0]<<(*it)->n[1]<<" Status="<<(*it)->isWorking()<<std::endl;
 		edge* e = *it;
 		if ( (*it)->isWorking() )
 		{
 			int n1=(*it)->n[0];
 			int n2=(*it)->n[1];
 
-			// Is this edge connected to the final dest?
-			if ( n1 == nf || n2 == nf )
-				return true;
-
 			// Are these nodes visited earlier?
-			if ( visitedNodes[n1] == false )
+			if ( visitedNodes[n1] == false && n1!=nc)
 			{
 				// Will this edge lead to the destination? (recursion)
-				bool foundDestination = unfoldGraph( n1, nf, connectingEdges, visitedNodes );
-				if (foundDestination)
-					return true;
-
-				visitedNodes[n1] = true;
+				bool result = unfoldGraph( n1, nf, connectingEdges, visitedNodes );
 			}
 
 			// Are these nodes visited earlier?
-			if ( visitedNodes[n2] == false )
+			if ( visitedNodes[n2] == false && n2!=nc )
 			{
 				// Will this edge lead to the destination? (recursion)
-				bool foundDestination = unfoldGraph( n2, nf, connectingEdges, visitedNodes );
-				if (foundDestination)
-					return true;
-
-				visitedNodes[n2] = true;
+				bool result = unfoldGraph( n2, nf, connectingEdges, visitedNodes );
 			}
 		}
 	}
 
 	// If we reach this far, then we've expanded the neighbors without finding the destination
-	return false;
+	return 0;
 }
 
 void graph::printEdges()
@@ -182,10 +200,19 @@ int graph::loadEdgeData( char* filename )
 		std::vector<edge*>::iterator it;
 		for ( it = edges.begin(); it < edges.end() ; ++it )
 		{
+			//std::cout << (*it)->n[0] << " " << (*it)->n[1] << " " << biggestNodeId <<  std::endl;
 			connectingEdges[ (*it)->n[0] ].push_back( *it ); // Add a copy of *it to connectingEdges
 			connectingEdges[ (*it)->n[1] ].push_back( *it );
-
 		}
+
+		/*for (int i=0; i<=biggestNodeId; ++i)
+		{
+			std::cout << "node "<<i<<" has the following edges\n";
+			for (it = connectingEdges[i].begin(); it < connectingEdges[i].end() ; ++it )
+			{
+				std::cout << (*it)->n[0] << " " << (*it)->n[1] << std::endl;
+			}
+		}*/
 
         std::cout << "   Loaded " << edges.size() << " edges\n";
         return NO_ERROR;

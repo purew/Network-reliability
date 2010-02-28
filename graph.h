@@ -24,6 +24,7 @@ enum errors {   NO_ERROR=0,
                 DUPLICATE,
                 MAX_NEIGHBORS,
                 FILE_OPEN_ERROR,
+                ILLEGAL_NODE_ID
 };
 
 
@@ -33,7 +34,7 @@ class edge
 {
 public:
 	/** Constructor takes two nodes as argument, and optionally reliability and cost. */
-    edge( int n1, int n2, float reliability = 0.6, float cost=1.0 );
+    edge( int n1, int n2, float reliability = 0.8, float cost=1.0 );
     /** Returns an array with two elements containing the connected nodes. */
     const int* getNodes() { return n; };
 	/** Reset the node to working condition. */
