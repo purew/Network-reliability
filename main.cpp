@@ -14,8 +14,6 @@
 #include <cstring>
 #include <string>
 #include "graph.h"
-#include "Core/graphics.h"
-#include "Core/GLFT_Font.hpp"
 #include "misc.h"
 
 
@@ -24,33 +22,59 @@ int main(int argv, char **argc)
 	sArgs args = parseArguments( argv, argc );
 
 	graph network;
-	std::cout << "Trying to load "<< args.filename << std::endl;
+	if ( args.rawFormat == false )
+		std::cout << "Trying to load "<< args.filename << std::endl;
 
-	// Try loading the file
-	if ( network.loadEdgeData( args.filename.c_str() ) == NO_ERROR )
+	/** Try loading the network from file */
+	if ( network.loadEdgeData( args.filename.c_str(), args.rawFormat ) == NO_ERROR )
 	{
-		std::cout << "Estimating reliability...\n";
-		if ( network.estReliabilityMC( 100000 ) != NO_ERROR )
-			std::cout << "Something went wrong in the reliability estimation\n";
-
-
-		// Do we want a window app?
-		if ( argv >= 3 && strcmp(argc[2], "-window" )==0 )
+		// Do we want to perform tests on our algorithm?
+		if ( args.mode == PERFORM_TESTS )
 		{
-			rendererAllmighty renderer;
-			renderer.initWindow(800,600,24,GLFW_WINDOW, "Network Reliability Simulator");
-			renderer.setOrtho();
-			GLFT_Font normalFont("binreg.ttf",24);
-			std::cout << "Entering main-loop\n";
-			while (!glfwGetKey( GLFW_KEY_ESC ) && glfwGetWindowParam( GLFW_OPENED ))
+			// We have chosen to perform tests on our simulations
+			std::cout
+				<< "************************************\n"
+				<< "   Performing test of 1 cell\n"
+				<< "************************************\n";
+
+			if ( network.estReliabilityMC( 1e4, args.rawFormat ) != NO_ERROR )
+				std::cout << "Something went wrong in the reliability estimation\n";
+			std::cout << "Correct value should be ...\n";
+
+		}	// End of testing
+		else if ( args.mode == PERCOLATION )
+		{
+			// In percolation mode, we want to calculate R(x,p) where N*x=F are removed
+			// from the node immediately. p is the normal reliability per edge.
+			float stepSizeP = 0.01;
+			float stepSizeX = 0.1;
+			for ( float x=0; x<=1.0; x+=stepSizeX)
 			{
-				normalFont.drawText(10,10, "Testar att printa");
 
-				renderer.swapBuffers();
+				// Disable N*x edges that will not take part of the simulation
+				network.disableXEdges(x);
 
+				//std::cout << "*******Failed edges: "<<network.nbrFailed()<<std::endl;
+
+				for ( float p=0; p<1.0; p+=stepSizeP )
+				{
+					std::cout << p << " " << x << " ";
+					network.setEdgeReliability( p );
+					if ( network.estReliabilityMC( 1e3, args.rawFormat ) != NO_ERROR )
+						std::cout << "Something went wrong in the reliability estimation\n";
+				}
+
+				// Restore the disabled edges
+				network.hardResetEdges();
 			}
+
+		}
+		else
+		{
+			// Normal calculation
+			if ( network.estReliabilityMC( 100000, args.rawFormat ) != NO_ERROR )
+					std::cout << "Something went wrong in the reliability estimation\n";
 		}
 	}
-
 	return 0;
 }

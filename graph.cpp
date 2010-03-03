@@ -14,6 +14,7 @@
 #include <cstdlib>
 
 #include "graph.h"
+#include "MersenneTwister.h"
 
 ////////////////////////////////////////////////////////////
 //
@@ -30,6 +31,12 @@ edge::edge( int n1, int n2, float _reliability, float _cost )
     working = true;
 }
 
+void edge::reset()
+{
+	if ( working >= 0 )
+		working = 1;
+
+}
 
 ////////////////////////////////////////////////////////////
 //
@@ -37,8 +44,45 @@ edge::edge( int n1, int n2, float _reliability, float _cost )
 //
 ////////////////////////////////////////////////////////////
 
+void graph::setEdgeReliability( double newReliability )
+{
+	std::vector<edge*>::iterator it;
+		for ( it = edges.begin(); it < edges.end() ; ++it )
+			(*it)->setReliability( newReliability );
+}
 
-int graph::estReliabilityMC( int t )
+void graph::disableXEdges( float x )
+{
+	// Prevent infty-loop
+	if ( x > 1.0 )
+		x = 1.0;
+
+	// Disable F=floor(N*x) edges
+	int F = x*edges.size();
+
+	//std::cout << "F="<<F << std::endl;
+	while ( F > 0 )
+	{
+		int r = randomNbrGenerator.randExc( edges.size());
+		if ( edges[r]->isWorking() )
+		{
+			edges[r]->disable();
+			--F;
+		}
+
+	}
+}
+
+void graph::hardResetEdges()
+{
+	std::vector<edge*>::iterator it;
+	for ( it = edges.begin(); it < edges.end() ; ++it )
+		(*it)->hardReset();
+
+}
+
+
+int graph::estReliabilityMC( int t, bool rawFormat)
 {
 	// TODO, implement threading of this part? If so, make copies of connectedEdges (REAL COPIES, not just the pointers)
 
@@ -57,7 +101,7 @@ int graph::estReliabilityMC( int t )
 			if ( randomNbrGenerator() > (*it)->getReliability() )
 			{
 				// This link failed!
-				(*it)->setWorking( false );
+				(*it)->setWorking( 0 );
 			}
 
 		}
@@ -82,7 +126,7 @@ int graph::estReliabilityMC( int t )
 			++workingTwoTerminalNetworks;
 		// Is it a working all-terminal instance? (Are all nodes visited?)
 		int allterminal=1;
-		for ( int i=0; i<biggestNodeId; ++i )
+		for ( int i=0; i<=biggestNodeId; ++i )
 			if ( nodeVisited[i]==false )
 				allterminal=0;
 		workingAllTerminalNetworks += allterminal;
@@ -100,8 +144,19 @@ int graph::estReliabilityMC( int t )
 		std::cin.get();*/
 
 	}
-	std::cout << "Two-terminal reliability = " << (float)(workingTwoTerminalNetworks)/t << ", calculated from "<< t <<" simulations\n";
-	std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t << std::endl;
+
+	if ( rawFormat )
+	{
+		std::cout << (float)(workingAllTerminalNetworks)/t << std::endl;
+
+	}
+	else
+	{
+		//std::cout << "Two-terminal reliability = " << (float)(workingTwoTerminalNetworks)/t << ", calculated from "<< t <<" simulations\n";
+		//std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t  << ", calculated from "<< t <<" simulations\n"<< std::endl;
+	}
+	//	std::cout << "Failed edges: "<<nbrFailed()<<std::endl;
+
 	return NO_ERROR;
 }
 
@@ -139,20 +194,12 @@ bool graph::unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bo
 	return 0;
 }
 
-void graph::printEdges()
-{
-	// Loop through edges and print each
-
-	// for
-	//	std::cout << n[0] << " " << n[1] << std::endl;
-
-}
-
 enum filetype { TYPE_EDGES };
 
-int graph::loadEdgeData( const char* filename )
+int graph::loadEdgeData( const char* filename, bool quiet )
 {
-
+	// CLEANUP: Empty the old vectors first
+	cleanup();
 
     std::ifstream file( filename );
     if ( file.is_open() )
@@ -206,8 +253,6 @@ int graph::loadEdgeData( const char* filename )
 			pos = line.find(" ");
 			line.erase( 0, pos+1 );
 			reliabilityPerNode = atof( line.c_str() );
-			std::cout << line << " "<<reliabilityPerNode;
-
         }
 
         while ( file.eof() == 0 )
@@ -244,7 +289,7 @@ int graph::loadEdgeData( const char* filename )
         // Given a node, we want to quickly find what edges are connecting to this node
         // Thus we keep an array of vectors, where each element in the array corresponds
         // to a node and holds a linked vector with all the connecting edges
-        connectingEdges = new std::vector<edge*>[biggestNodeId+1];
+		connectingEdges = new std::vector<edge*>[biggestNodeId+1];
 
         // Now, go through edges and put each edge in the right element in connectingEdges
 		std::vector<edge*>::iterator it;
@@ -264,26 +309,47 @@ int graph::loadEdgeData( const char* filename )
 			}
 		}*/
 
-        std::cout << "   Loaded " << edges.size() << " edges\n";
+		if ( !quiet )
+		{
+			std::cout << "   Loaded " << edges.size() << " edges\n";
+		}
         return NO_ERROR;
     }
     else
         return FILE_OPEN_ERROR;
 }
 
-
-graph::~graph()
+void graph::cleanup()
 {
-
+	if ( connectingEdges != 0 )
+	{
+		/*for (int i=0;i<=biggestNodeId; ++i )
+		{
+			if ( connectingEdges[i].empty() == false )
+			connectingEdges[i].clear();
+		}*/
+		delete [] connectingEdges;
+		connectingEdges = 0;
+	}
 	std::vector<edge*>::iterator it;
 	for ( it = edges.begin(); it < edges.end() ; ++it )
 	{
-			delete *it;
-			*it = 0;
+		delete *it;
 	}
-	// Why is the below delete causing seg-faults?
-	//delete[] connectingEdges;
+	edges.clear();
+	biggestNodeId = 0;
+}
 
+
+graph::graph()
+{
+	connectingEdges = 0;
+
+}
+
+graph::~graph()
+{
+	cleanup();
 }
 
 
@@ -292,7 +358,7 @@ graph::~graph()
 
 ////////////////////////////////////////////////////////////
 //
-//      The NODE class
+//      The NODE class (NOT USED ATM)
 //
 ////////////////////////////////////////////////////////////
 

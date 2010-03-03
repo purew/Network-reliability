@@ -15,7 +15,9 @@
 
 enum modes  {	CALCULATE_RELIABILITY_MC,
 				DESIGN_NEW_NETWORK,
-				DISPLAY_NETWORK
+				DISPLAY_NETWORK,
+				PERCOLATION,
+				PERFORM_TESTS,
 };
 
 /** A struct containing all the default values and arguments from command line.
@@ -24,6 +26,7 @@ struct sArgs
 {
 	std::string filename;
 	modes mode;
+	bool rawFormat;
 };
 
 /** Parse the arguments, supply default values and return a struct with complete parameters. */

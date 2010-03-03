@@ -28,6 +28,8 @@ enum errors {   NO_ERROR=0,
 };
 
 
+
+
 /** A class representing the edge in our graph.
     The edge goes both ways. */
 class edge
@@ -35,19 +37,28 @@ class edge
 public:
 	/** Constructor takes two nodes as argument, and optionally reliability and cost. */
     edge( int n1, int n2, float reliability = 0.8, float cost=1.0 );
+
     /** Returns an array with two elements containing the connected nodes. */
     const int* getNodes() { return n; };
-	/** Reset the node to working condition. */
-	void reset() {working = true;};
-	bool isWorking() {return working;};
-	void setWorking( bool status ) {working = status;};
+
+	/** Reset the edge to working condition if it has failed. If the node is disabled a hard reset must be used.*/
+	void reset();
+	/** Reset the edge no matter the current status. */
+	void hardReset() { working=1;};
+	/** Disable the edge, only a hard reset will make it functional agian. */
+	void disable() { working = -1;};
+
+	bool isWorking() {return working==1;};
+	void setWorking( bool status=1 ) {if (working != -1) working = status;};
+
 	float getCost() {return cost;};
+	void setReliability( double newReliability ) {reliability = newReliability;};
 	double getReliability() {return reliability;};
 
     int n[2];
 private:
 
-	bool working;
+	int working;	//!< -1 if disabled, 0 if failed and 1 if working
 
     float cost;
     double reliability;
@@ -65,19 +76,41 @@ public:
 	are positive integers which when sorted contain no gaps (i.e. 1 2 3  instead of 1 2 7).
 	Also, it is not allowed to have edges returning to the same node.
 
-	Return NO_ERROR on success.*/
-    int loadEdgeData( const char* filename);
+	Return NO_ERROR on success. Loading a new network removes the previous network.
+	Optional parameter makes the function quiet unless there's an error. */
+    int loadEdgeData( const char* filename, bool quiet=false );
 
     /** Perform Monte Carlo simulation to estimate the reliability of the network between two nodes.
-    Takes t as an optional argument which is the number of iterations to calculate. */
-    int estReliabilityMC( int t=1000 );
+    Takes t as an optional argument which is the number of iterations to calculate.
+    If rawFormat is set to true, then the program sends raw data to std::out which can be loaded by
+    other software. */
+    int estReliabilityMC( int t=1000, bool rawFormat=false );
+
     float getVariance() {return varianceOfLastReliabilitySimulation;};
 
+	/** Change the reliability of all edges */
+	void setEdgeReliability( double newReliability );
+
+	/** Disable N*x edges completely, removing them from all calculations until a hard reset has been done. */
+	void disableXEdges( float x );
+
+	/** Reset ALL edges to working condition. Like  a hard reset. */
+	void hardResetEdges();
 
     /** Prints the edge-data in raw format. */
     void printEdges();
 
-    graph() {};
+    int nbrFailed()
+    {
+    	int sum = 0;
+    	std::vector<edge*>::iterator it;
+		for ( it = edges.begin(); it < edges.end() ; ++it )
+			sum += ((*it)->isWorking()==0 );
+
+		return sum;
+    }
+
+    graph();
     ~graph();
 
 private:
@@ -87,6 +120,8 @@ private:
 	bool unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bool *visitedNodes );
 
     int biggestNodeId;	//!< Used for keeping track of the nodes (TODO, a vector would be better)
+
+	void cleanup();		//!< Perform cleanup when done using the graph. Called internally in destructor and load-func.
 
     std::vector<edge*> *connectingEdges; 	//!< Array of lists of edge*, arranged after nodes
 	std::vector<edge*> edges;				//!< All edge*s
