@@ -47,7 +47,7 @@ int main(int argv, char **argc)
 			// In percolation mode, we want to calculate R(x,p) where N*x=F are removed
 			// from the node immediately. p is the normal reliability per edge.
 			float stepSizeP = 0.01;
-			float stepSizeX = 0.1;
+			float stepSizeX = 0.0476;
 			for ( float x=0; x<=1.0; x+=stepSizeX)
 			{
 
@@ -56,13 +56,14 @@ int main(int argv, char **argc)
 
 				//std::cout << "*******Failed edges: "<<network.nbrFailed()<<std::endl;
 
-				for ( float p=0; p<1.0; p+=stepSizeP )
+				for ( float p=0; p<=1.0; p+=stepSizeP )
 				{
-					std::cout << p << " " << x << " ";
+					//std::cout << p << " " << x << " ";
 					network.setEdgeReliability( p );
-					if ( network.estReliabilityMC( 1e3, args.rawFormat ) != NO_ERROR )
+					if ( network.estReliabilityMC( 4e3, args.rawFormat ) != NO_ERROR )
 						std::cout << "Something went wrong in the reliability estimation\n";
 				}
+				std::cout << std::endl;
 
 				// Restore the disabled edges
 				network.hardResetEdges();

@@ -57,6 +57,12 @@ void graph::disableXEdges( float x )
 	if ( x > 1.0 )
 		x = 1.0;
 
+	// First reset the edges
+	std::vector<edge*>::iterator it;
+	for ( it = edges.begin(); it < edges.end() ; ++it )
+			(*it)->reset();
+
+
 	// Disable F=floor(N*x) edges
 	int F = x*edges.size();
 
@@ -147,7 +153,7 @@ int graph::estReliabilityMC( int t, bool rawFormat)
 
 	if ( rawFormat )
 	{
-		std::cout << (float)(workingAllTerminalNetworks)/t << std::endl;
+		std::cout << (float)(workingAllTerminalNetworks)/t << " ";
 
 	}
 	else
