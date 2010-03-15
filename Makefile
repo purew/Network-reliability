@@ -2,12 +2,12 @@
 #	Licensed under the MIT license: http://www.opensource.org/licenses/mit-license.php
 
 CC 		= g++
-CXXFLAGS= -Wall
+CXXFLAGS= -Wall -O3
 CFLAGS 	= $(CXXFLAGS)
 LDFLAGS+=
 
 DEPS 	= graph.h misc.h
-SOURCES	=
+SOURCES	= graph.cpp main.cpp misc.cpp
 OBJECTS = graph.o   misc.o main.o
 
 
@@ -18,6 +18,11 @@ OBJECTS = graph.o   misc.o main.o
 # Create the main executable
 main 		: $(OBJECTS)
 	$(CC) -o $@ $^ $(CFLAGS) $(LDFLAGS)
+
+# Create profiled version
+profile 		: $(OBJECTS)
+	$(CC) -o $@ $^ $(CFLAGS) -pg $(LDFLAGS)
+
 
 # Prevent make from touching a file named clean
 .PHONY: clean

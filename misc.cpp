@@ -30,6 +30,9 @@ sArgs parseArguments( int argv, char** argc )
 				else if ( strcmp(argc[i+1], "percolation")==0 )
 					args.mode = PERCOLATION;
 
+				else if ( strcmp(argc[i+1], "find_optimal_aco")==0 )
+					args.mode = FIND_OPTIMAL_ACO;
+
 				else std::cout << "ERROR: "<<argc[i+1]<<" is not a valid mode\n";
 			}
 			else std::cout << "A mode must follow --mode, examples \"test\" or \"percolation\"\n";

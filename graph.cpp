@@ -11,6 +11,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <list>
 #include <cstdlib>
 
 #include "graph.h"
@@ -33,6 +34,8 @@ edge::edge( int n1, int n2, float _reliability, float _cost )
 
 void edge::reset()
 {
+	acoTau=1;
+	cost=1;
 	if ( working >= 0 )
 		working = 1;
 
@@ -88,7 +91,7 @@ void graph::hardResetEdges()
 }
 
 
-int graph::estReliabilityMC( int t, bool rawFormat)
+float graph::estReliabilityMC( int t, bool rawFormat)
 {
 	// TODO, implement threading of this part? If so, make copies of connectedEdges (REAL COPIES, not just the pointers)
 
@@ -136,34 +139,19 @@ int graph::estReliabilityMC( int t, bool rawFormat)
 			if ( nodeVisited[i]==false )
 				allterminal=0;
 		workingAllTerminalNetworks += allterminal;
-
-
-		// DEBUGGING
-	/*	std::cout << "\n******************\nWorking nodes:\n";
-		for ( it = edges.begin(); it < edges.end() ; ++it )
-				if ( (*it)->isWorking() )
-					std::cout << (*it)->n[0] << " " << (*it)->n[1] << std::endl;
-		std::cout << "Visited nodes\n";
-		for (int i=0;i<biggestNodeId; ++i)
-			if (nodeVisited[i])
-				std::cout << i << " ";
-		std::cin.get();*/
-
 	}
 
 	if ( rawFormat )
 	{
-		std::cout << (float)(workingAllTerminalNetworks)/t << " ";
+		//std::cout << (float)(workingAllTerminalNetworks)/t << " ";
 
 	}
 	else
 	{
-		//std::cout << "Two-terminal reliability = " << (float)(workingTwoTerminalNetworks)/t << ", calculated from "<< t <<" simulations\n";
-		//std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t  << ", calculated from "<< t <<" simulations\n"<< std::endl;
+		std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t  << ", calculated from "<< t <<" simulations\n"<< std::endl;
 	}
-	//	std::cout << "Failed edges: "<<nbrFailed()<<std::endl;
 
-	return NO_ERROR;
+	return (float)workingAllTerminalNetworks/t;
 }
 
 bool graph::unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bool *visitedNodes )
@@ -198,6 +186,83 @@ bool graph::unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bo
 
 	// If we reach this far, then we've expanded the neighbors without finding the destination
 	return 0;
+}
+
+
+void graph::doPercolationCalculation()
+{
+
+	// In percolation mode, we want to calculate R(x,p) where N*x=F are removed
+	// from the node immediately. p is the normal reliability per edge.
+	float stepSizeP = 0.05;
+	float stepSizeX = 1.0/(int)edges.size();
+	int iterations = 10; // Average over this many iterations
+
+	std::ofstream datafile( "data/percolation.plot", std::ios::out|std::ios::trunc );
+
+	for ( float x=0; x<1.0; x+=stepSizeX)
+	{
+		for ( float p=0; p<1.0; p+=stepSizeP )
+		{
+			float reliability = 0;
+			for ( int i=0;i<iterations; ++i )
+			{
+				// Disable N*x edges that will not take part of the simulation
+				disableXEdges(x);
+
+				setEdgeReliability( p );
+				float newRel = estReliabilityMC( 1e4, 1 );
+				if ( newRel < 0 )
+					std::cout << "Something went wrong in the reliability estimation\n";
+				reliability += newRel;
+				// Restore the disabled edges
+				hardResetEdges();
+			}
+
+			// Get the mean
+			reliability /= iterations;
+			datafile << reliability << " ";
+		}
+		datafile << std::endl;
+
+	}
+	datafile.close();
+}
+
+int graph::acoFindOptimal( int Nmax, int Cmax, int ants )
+{
+	// Initialize the pheromones to tau_0, by resetting the edges
+	// Reset all edges to working state
+	std::vector<edge*>::iterator it;
+	for ( it = edges.begin(); it < edges.end() ; ++it )
+		(*it)->reset();
+
+	for ( int N=0; N<Nmax; ++N )
+	{
+		// Calculate the probabilities of picking a certain link for all nodes first
+		for ( int n=0; n<=biggestNodeId; ++n )
+		{
+			// Loop over all links connecting node n, and sum up the probabilities
+			float sumP = 0;
+			std::vector<edge*>::iterator it;
+			for ( it = connectingEdges[n].begin(); it < connectingEdges[n].end() ; ++it )
+				sumP += (*it)->acoGetTau();
+
+		}
+
+		// Generate K=ants solutions
+		std::list<edge*> antPath[ants];
+
+		for ( int k=0; k<ants; ++k )
+		{
+			// Start in a random node
+			int startNode = randomNbrGenerator.randExc(biggestNodeId);
+
+			//
+		}
+	}
+
+	return NO_ERROR;
 }
 
 enum filetype { TYPE_EDGES };

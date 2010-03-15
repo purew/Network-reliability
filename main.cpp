@@ -44,37 +44,25 @@ int main(int argv, char **argc)
 		}	// End of testing
 		else if ( args.mode == PERCOLATION )
 		{
-			// In percolation mode, we want to calculate R(x,p) where N*x=F are removed
-			// from the node immediately. p is the normal reliability per edge.
-			float stepSizeP = 0.01;
-			float stepSizeX = 0.0476;
-			for ( float x=0; x<=1.0; x+=stepSizeX)
-			{
+			std::cout << "Starting percolation calculations for file " << args.filename.c_str() <<std::endl;
+			network.doPercolationCalculation();
 
-				// Disable N*x edges that will not take part of the simulation
-				network.disableXEdges(x);
+		}
+		else if ( args.mode == FIND_OPTIMAL_ACO )
+		{
+			std::cout << "Starting ACO for file "<< args.filename.c_str() << std::endl;
+			int result = network.acoFindOptimal(10, 5);
 
-				//std::cout << "*******Failed edges: "<<network.nbrFailed()<<std::endl;
-
-				for ( float p=0; p<=1.0; p+=stepSizeP )
-				{
-					//std::cout << p << " " << x << " ";
-					network.setEdgeReliability( p );
-					if ( network.estReliabilityMC( 4e3, args.rawFormat ) != NO_ERROR )
-						std::cout << "Something went wrong in the reliability estimation\n";
-				}
-				std::cout << std::endl;
-
-				// Restore the disabled edges
-				network.hardResetEdges();
-			}
-
+			std::cout << "ACO returned "<<result<<std::endl;
 		}
 		else
 		{
 			// Normal calculation
-			if ( network.estReliabilityMC( 100000, args.rawFormat ) != NO_ERROR )
+			std::cout << "Starting normal calculation of " << args.filename.c_str() << std::endl;
+			float rel = network.estReliabilityMC( 100000, args.rawFormat );
+			if ( rel < 0 )
 					std::cout << "Something went wrong in the reliability estimation\n";
+			else std::cout << "Reliability = " << rel << std::endl;
 		}
 	}
 	return 0;

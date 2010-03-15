@@ -18,6 +18,7 @@ enum modes  {	CALCULATE_RELIABILITY_MC,
 				DISPLAY_NETWORK,
 				PERCOLATION,
 				PERFORM_TESTS,
+				FIND_OPTIMAL_ACO
 };
 
 /** A struct containing all the default values and arguments from command line.

@@ -55,6 +55,16 @@ public:
 	void setReliability( double newReliability ) {reliability = newReliability;};
 	double getReliability() {return reliability;};
 
+	/** Get the pheromone level on this link. */
+	float acoGetTau() {return acoTau;};
+	/** Set the pheromone level on this link. */
+	float acoSetTau();
+
+	/** Set the probability to choose this link from origin-node. */
+	void acoSetPFromNode( int origin, float p) {if (origin==n[0]) acoP[0]=p; else acoP[1]=p;};
+	/** Get the probability to choose this link from origin-node. */
+	float acoGetPFromNode( int origin ) {if (origin==n[0]) return acoP[0]; else return acoP[1];};
+
     int n[2];
 private:
 
@@ -62,6 +72,10 @@ private:
 
     float cost;
     double reliability;
+
+	float acoTau;		//!< The pheromone level on this link
+	/** acoP[i] is the probability of this link to be chosen from node i */
+	float acoP[2];
 };
 
 /** Class for keeping track of the graph.
@@ -82,9 +96,9 @@ public:
 
     /** Perform Monte Carlo simulation to estimate the reliability of the network between two nodes.
     Takes t as an optional argument which is the number of iterations to calculate.
-    If rawFormat is set to true, then the program sends raw data to std::out which can be loaded by
-    other software. */
-    int estReliabilityMC( int t=1000, bool rawFormat=false );
+    If rawFormat is set to true, no output will be written.
+    Returns the estimated reliability. */
+    float estReliabilityMC( int t=1000, bool rawFormat=false );
 
     float getVariance() {return varianceOfLastReliabilitySimulation;};
 
@@ -100,15 +114,21 @@ public:
     /** Prints the edge-data in raw format. */
     void printEdges();
 
-    int nbrFailed()
-    {
-    	int sum = 0;
-    	std::vector<edge*>::iterator it;
-		for ( it = edges.begin(); it < edges.end() ; ++it )
-			sum += ((*it)->isWorking()==0 );
+    /** Perform percolation calculation and save the results to data/percolation.plot
+		For plotting with Matlab. Data is saved in a matrix where increasing columns are
+		increasing p and increasing rows are increasing x.*/
+    void doPercolationCalculation();
 
-		return sum;
-    }
+	/****************************************
+			ACO-functions
+	 ****************************************/
+
+    /** Use ACO to find a near-optimal solution that maximizes reliability
+	given a cost restraint of Cmax. */
+    int acoFindOptimal( int Nmax, int Cmax, int ants=10 );
+	/** Calculate the prob. p that an ant will choose destination from the origin-node. */
+	float acoP( int origin, int destination );
+
 
     graph();
     ~graph();

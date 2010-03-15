@@ -1,18 +1,29 @@
 clf
 
-load temp
+R = load('data/percolation.plot');
+% Format: x, p, reliability
 
-X = 0:1/(length(temp(:,1))-1):1;
-P = 0:1/(length(temp(1,:))-1):1;
+lenP = length(R(1,:));
+lenX = length(R(:,1));
 
-surf(P,X,temp);
-%shading faceted;
-%shading interp;
-shading flat;
+P = 0:1/lenP:1;
+P = P(1:end-1);
+X = 0:1/lenX:1;
+X = X(1:end-1);
+
+
+
+hold on 
+
 title('Percolation problem')
 xlabel('p')
- ylabel('x')
- zlabel('R(p,x)')
+ylabel('x')
+zlabel('R(p,x)')
+surf(P,X,R)
+shading faceted;
+%shading interp;
+%shading flat;
+
 shg
 
 
