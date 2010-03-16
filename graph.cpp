@@ -54,20 +54,17 @@ void graph::setEdgeReliability( double newReliability )
 			(*it)->setReliability( newReliability );
 }
 
-void graph::disableXEdges( float x )
+void graph::disableXEdges( int F )
 {
 	// Prevent infty-loop
-	if ( x > 1.0 )
-		x = 1.0;
+	if ( F > edges.size() )
+		F = edges.size();
 
 	// First reset the edges
 	std::vector<edge*>::iterator it;
 	for ( it = edges.begin(); it < edges.end() ; ++it )
 			(*it)->reset();
 
-
-	// Disable F=floor(N*x) edges
-	int F = x*edges.size();
 
 	//std::cout << "F="<<F << std::endl;
 	while ( F > 0 )
@@ -192,15 +189,19 @@ bool graph::unfoldGraph( int nc, int nf, std::vector<edge*> *connectingEdges, bo
 void graph::doPercolationCalculation()
 {
 
-	// In percolation mode, we want to calculate R(x,p) where N*x=F are removed
-	// from the node immediately. p is the normal reliability per edge.
+	// In percolation mode, we want to calculate R(x,p) where N*x=F edges are removed
+	// immediately. p is the normal reliability per edge.
 	float stepSizeP = 0.05;
-	float stepSizeX = 1.0/(int)edges.size();
-	int iterations = 10; // Average over this many iterations
+	int iterations = 100; // Average over this many iterations
+	int MCiterations = 1e3;	// Do this many monte carlo iterations in the reliability estimation
+
+	std::cout << "Averaging over "<<iterations<<" instances\n";
+	std::cout << "Doing "<<MCiterations<<" Monte Carlo steps per instance\n";
+	std::cout << "Percentage done: " << std::flush;
 
 	std::ofstream datafile( "data/percolation.plot", std::ios::out|std::ios::trunc );
 
-	for ( float x=0; x<1.0; x+=stepSizeX)
+	for ( int f=0; f<edges.size(); ++f )
 	{
 		for ( float p=0; p<1.0; p+=stepSizeP )
 		{
@@ -208,10 +209,10 @@ void graph::doPercolationCalculation()
 			for ( int i=0;i<iterations; ++i )
 			{
 				// Disable N*x edges that will not take part of the simulation
-				disableXEdges(x);
+				disableXEdges(f);
 
 				setEdgeReliability( p );
-				float newRel = estReliabilityMC( 1e4, 1 );
+				float newRel = estReliabilityMC( MCiterations, 1 );
 				if ( newRel < 0 )
 					std::cout << "Something went wrong in the reliability estimation\n";
 				reliability += newRel;
@@ -225,7 +226,11 @@ void graph::doPercolationCalculation()
 		}
 		datafile << std::endl;
 
+		// Progressbar
+		std::cout << (int)((float)f/edges.size()*100)<<" "<<std::flush;
+
 	}
+	std::cout << std::endl;
 	datafile.close();
 }
 
@@ -285,7 +290,7 @@ int graph::loadEdgeData( const char* filename, bool quiet )
         // Determine type of the file
         if ( line.find("type") == std::string::npos )
 		{
-			std::cout << "Incorrect file, could not find a type-specifier\n";
+			std::cout << "Incorrect file, could not find a type-specifier\nExample of first line: \"type: edges\"\n";
 			return FILE_OPEN_ERROR;
 		}
 		int filetype;
@@ -293,67 +298,55 @@ int graph::loadEdgeData( const char* filename, bool quiet )
         {
         	filetype = TYPE_EDGES;
 
-        	// Find out between what nodes to perform reliability calculation
-			getline( file, line );
-			if ( line.find("start:") == std::string::npos)
-			{
-				std::cout << "No start-field found in file, aborting\n";
-				return FILE_OPEN_ERROR;
-			}
-			int pos = line.find(" ");
-			line.erase( 0, pos+1 );
-			n1 = atoi( line.c_str() );
-
-			getline( file, line);
-			if ( line.find("end:") == std::string::npos)
-			{
-				std::cout << "No end-field found in file, aborting\n";
-				return FILE_OPEN_ERROR;
-			}
-			pos = line.find(" ");
-			line.erase( 0, pos+1 );
-			n2 = atoi( line.c_str() );
-
 			// Find out the reliability of each node
 			getline( file, line );
 			if ( line.find("prob:") == std::string::npos)
 			{
-				std::cout << "No prob-field found in file, aborting\nline:" << line;
+				std::cout << "No prob-field found in file, aborting\nline: " << line;
 				return FILE_OPEN_ERROR;
 			}
-			pos = line.find(" ");
+			int pos = line.find(" ");
 			line.erase( 0, pos+1 );
 			reliabilityPerNode = atof( line.c_str() );
-        }
 
-        while ( file.eof() == 0 )
+			// Start parsing the data
+			while ( file.eof() == 0 )
+			{
+				getline( file, line );
+				if ( line.length() >= 3 && line[0] != '#' )
+				{
+					// Length seems correct, try decoding the edge
+					// Format of line is "XX YY"
+
+					// atoi will read XX and stop at whitespace
+					int n1 = atoi( line.c_str() );
+
+					// For YY we need to find the whitespace first
+					int pos = line.find(" ");
+					line.erase( 0, pos+1 );
+					int n2 = atoi( line.c_str() );
+
+					// Add the edge to our vector
+					edge* e = new edge( n1, n2, reliabilityPerNode );
+					edges.push_back( e );
+
+					// For later optimization (let each node know what edges are connecting)
+					// we want to know the largest node id.
+					if ( n1>biggestNodeId )
+						biggestNodeId = n1;
+					if ( n2>biggestNodeId )
+						biggestNodeId = n2;
+				}
+			}
+
+
+        }
+        else
         {
-            getline( file, line );
-            if ( line.length() >= 3 )
-            {
-                // Length seems correct, try decoding the edge
-                // Format of line is "XX YY"
-
-                // atoi will read XX and stop at whitespace
-                int n1 = atoi( line.c_str() );
-
-                // For YY we need to find the whitespace first
-                int pos = line.find(" ");
-                line.erase( 0, pos+1 );
-                int n2 = atoi( line.c_str() );
-
-                // Add the edge to our vector
-                edge* e = new edge( n1, n2, reliabilityPerNode );
-                edges.push_back( e );
-
-                // For later optimization (let each node know what edges are connecting)
-				// we want to know the largest node id.
-				if ( n1>biggestNodeId )
-					biggestNodeId = n1;
-				if ( n2>biggestNodeId )
-					biggestNodeId = n2;
-            }
+        	std::cout << "Could not determine type of file.\n Try looking in the example files on how to do it\n";
+        	return FILE_OPEN_ERROR;
         }
+
         file.close();
 
 
@@ -425,67 +418,3 @@ graph::~graph()
 
 
 
-
-
-////////////////////////////////////////////////////////////
-//
-//      The NODE class (NOT USED ATM)
-//
-////////////////////////////////////////////////////////////
-
-
-
- int node::gid = 1;
-
-int node::connect( node *p )
-{
-    if (neighbors<maxNeighbors)
-    {
-        // We don't want duplicates
-        for (int i=0;i<neighbors;++i)
-            if ( neighbArr[i] == p )
-                return DUPLICATE;
-
-        neighbArr[neighbors] = p;
-        ++neighbors;
-
-        // This worked, now lets try to do add this node to *p
-        int pResult = p->connect(this);
-        if (pResult == NO_ERROR )
-            return NO_ERROR;
-        else
-        {
-            // There was an error adding *this to *p, reverse the actions on *this
-            --neighbors;
-            neighbArr[neighbors] = 0;
-            return pResult;
-        }
-    }
-    else return MAX_NEIGHBORS;
-}
-
-node::node( int _maxNeighbors )
-{
-    neighbors = 0;
-    maxNeighbors = _maxNeighbors;
-    id = gid;
-    ++gid;
-
-
-    neighbArr = new node*[maxNeighbors];
-    for (int i=0;i<maxNeighbors; ++i)
-        neighbArr[i] = 0;
-}
-node::~node( )
-{
-    delete[] neighbArr;
-}
-
-
- void node::printConn()
-{
-    std::cout << id << " connected to ";
-    for (int i=0;i<neighbors;++i)
-        std::cout << neighbArr[i]->getID() << ", ";
-    std::cout << "\n";
-}

@@ -105,8 +105,8 @@ public:
 	/** Change the reliability of all edges */
 	void setEdgeReliability( double newReliability );
 
-	/** Disable N*x edges completely, removing them from all calculations until a hard reset has been done. */
-	void disableXEdges( float x );
+	/** Disable N edges completely, removing them from all calculations until a hard reset has been done. */
+	void disableXEdges( int N );
 
 	/** Reset ALL edges to working condition. Like  a hard reset. */
 	void hardResetEdges();
@@ -150,28 +150,6 @@ private:
 
     float varianceOfLastReliabilitySimulation;
     MTRand randomNbrGenerator;
-};
-
-
-
-
-/** The basic node in a network. */
-class node
-{
-public:
-    int connect( node *p );
-    int getID() {return id;};
-    void printConn();
-
-    node( int _maxNeighbors=10 );
-    ~node( );
-
-private:
-    int id;
-    int neighbors,maxNeighbors;
-    node **neighbArr;
-    static int gid;
-
 };
 
 
