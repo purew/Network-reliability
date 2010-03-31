@@ -11,7 +11,9 @@
 #define MISC_H_
 
 #include <string>
+#include "MersenneTwister.h"
 
+extern MTRand randomNbrGenerator;
 
 enum modes  {	CALCULATE_RELIABILITY_MC,
 				DESIGN_NEW_NETWORK,

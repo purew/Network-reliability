@@ -1,7 +1,6 @@
 /** @file main.cpp
 
-	Main program that calls other functions ie. sets up
-	the network and performs simulations.
+	Main program that calls other functions such as setting up the network and performing simulations.
 
 	Copyright (c) 2010 Anders Bennehag
 	Licensed under the MIT license
@@ -21,7 +20,7 @@ int main(int argv, char **argc)
 {
 	sArgs args = parseArguments( argv, argc );
 
-	graph network;
+	Graph network;
 	if ( args.rawFormat == false )
 		std::cout << "Trying to load "<< args.filename << std::endl;
 
@@ -45,13 +44,13 @@ int main(int argv, char **argc)
 		else if ( args.mode == PERCOLATION )
 		{
 			std::cout << "Starting percolation calculations for file " << args.filename.c_str() <<std::endl;
-			network.doPercolationCalculation();
+			doPercolationCalculation(&network);
 
 		}
 		else if ( args.mode == FIND_OPTIMAL_ACO )
 		{
 			std::cout << "Starting ACO for file "<< args.filename.c_str() << std::endl;
-			int result = network.acoFindOptimal(10, 5);
+			int result = acoFindOptimal(&network, 1, 5,1);
 
 			std::cout << "ACO returned "<<result<<std::endl;
 		}

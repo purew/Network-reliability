@@ -3,7 +3,7 @@
 #include <iostream>
 #include "misc.h"
 
-
+MTRand randomNbrGenerator;
 
 /** Handle the command line arguments and return a struct with all options
 */
