@@ -41,6 +41,7 @@ public:
     const int* getNodes() { return n; };
     /** Return the connected node. */
 	int getConnectingNode( int origin ) { if (origin==n[0]) return n[1]; else return n[0];};
+	int getConnectingNode( ) {return n[0];};
 
 	/** Reset the edge to working condition if it has failed. If the node is disabled a hard reset must be used.*/
 	void reset();
@@ -59,7 +60,7 @@ public:
 	/** Get the pheromone level on this link. */
 	float acoGetTau() {return acoTau;};
 	/** Set the pheromone level on this link. */
-	float acoSetTau();
+	void acoSetTau(float tau ) { acoTau = tau; };
 
 	/** Set the probability to choose this link from origin-node. */
 	void acoSetPFromNode( int origin, float p) {(origin==n[0])? acoP[0]=p: acoP[1]=p;};
@@ -100,10 +101,11 @@ public:
     int loadEdgeData( const char* filename, bool quiet=false );
 
 	/** Add an arbitrary edge to the network.
-		Observe that this function does not check for duplicates. */
+		Returns 0 on success and 1 if the edge already exists in this graph. */
 	int addEdge( edge* e );
 
 	int getBiggestNodeId() {return biggestNodeId;};
+
 	std::vector<edge*>* getConnectingEdges() {return connectingEdges;};
 	std::vector<edge*>* getConnectingEdges(int n) {return &(connectingEdges[n]);};
 	std::vector<edge*>* getEdges() {return &edges;};
@@ -125,17 +127,15 @@ public:
 	If rawFormat is set to true, no output will be written.
 	Returns the estimated reliability. */
 	float estReliabilityMC(  int t=1000, bool rawFormat=false );
+	/** Returns the latest estimated reliability.*/
+	float getLatestReliability() {return latestEstimatedReliability;};
 
-
+	/** Return the cost of this network.*/
 	float getCost() {return edges.size();};
 
+	/** This must be called on the master network before program terminates to free all memory properly.*/
+	void finalCleanup();
 
-	/****************************************
-			ACO-functions
-	 ****************************************/
-
-	/** Calculate the prob. p that an ant will choose destination from the origin-node. */
-	//float acoP( int origin, int destination );
 
 
     Graph();
@@ -151,6 +151,8 @@ private:
     static int biggestNodeId;	//!< Used for keeping track of the nodes (TODO, a vector would be better)
 
 	void cleanup();		//!< Perform cleanup when done using the graph. Called internally in destructor and load-func.
+
+	float latestEstimatedReliability;
 
     std::vector<edge*> *connectingEdges; 	//!< Array of lists of edge*, arranged after nodes
 	std::vector<edge*> edges;				//!< All edge*s

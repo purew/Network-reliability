@@ -77,11 +77,18 @@ int Graph::addEdge( edge *e )
 	if ( connectingEdges == 0 )
 		connectingEdges = new std::vector<edge*>[biggestNodeId+1];
 
+	// Check so that e does not already exist in the list
+	std::vector<edge*>::iterator it;
+	for ( it = edges.begin(); it != edges.end(); ++it)
+		if ( *it == e )
+			return 1;
+
 	edges.push_back( e );
 	const int *n = e->getNodes();
+	int n0 = n[0], n1 = n[1];
 	connectingEdges[n[0]].push_back(e);
 	connectingEdges[n[1]].push_back(e);
-
+	return 0;
 }
 
 void Graph::disableXEdges( unsigned int F )
@@ -175,7 +182,7 @@ float Graph::estReliabilityMC( int t, bool rawFormat)
 	}
 	else
 	{
-		std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t  << ", calculated from "<< t <<" simulations\n"<< std::endl;
+		std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t  << ", calculated from "<< t <<" simulations\n";
 	}
 
 	return (float)workingAllTerminalNetworks/t;
@@ -259,11 +266,20 @@ void doPercolationCalculation(Graph* network)
 
 int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 {
+	// Some parameters for the ACO algorithm
+	float Q = 1; 		// Determines the deltaTau
+	float rho = 0.8; 	// How fast old trails evaporate
+	int MCiterations = 1000;	// How many iterations performed in Monte carlo
+								// TODO: Should probably depend on number of links
+
+
 	// Initialize the pheromones to tau_0, by resetting the edges
 	// Reset all edges to working state
 	std::vector<edge*>::iterator it;
 	for ( it = nw->getEdges()->begin(); it < nw->getEdges()->end() ; ++it )
 		(*it)->reset();
+
+	int allNodes = nw->getBiggestNodeId();
 
 	for ( int N=0; N<Nmax; ++N )
 	{
@@ -295,9 +311,12 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 
 
 		// Generate K=nbrAnts solutions
-		std::list<Ant> ants(nbrAnts); // TODO Convert ants to a list!!!!!!
-		for ( int k=0; k<nbrAnts; ++k )
+		std::list<Ant> ants(nbrAnts);
+
+		std::list<Ant>::iterator antIt;
+		for ( antIt=ants.begin(); antIt != ants.end(); ++antIt )
 		{
+			//std::cout << "Placing a new ant...\n";
 			// Start in a random node
 			int currNode = randomNbrGenerator.randExc(nw->getBiggestNodeId());
 			edge *nextEdgeForAnt=0;
@@ -313,7 +332,7 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 			// This MUST be effective, the ant cannot keep walking
 			// without reaching the last nodes...
 			int visitedNodesInARow = 0;
-			while ( nbrNodesVisited<nw->getBiggestNodeId() )
+			while ( nbrNodesVisited < allNodes )
 			{
 				// Is this node a new node?
 				if ( visitedNodes[currNode]==false )
@@ -321,10 +340,8 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 					visitedNodes[currNode] = true;
 					++nbrNodesVisited;
 					visitedNodesInARow = 0;
-					if (nextEdgeForAnt != 0)
-						ants[k].addEdge(nextEdgeForAnt);
 					// Are we breaking the cost restraint with this new link?
-					if ( ants[k].getCost() > Cmax )
+					if ( (*antIt).getCost() > Cmax )
 						break;
 				}
 				else
@@ -365,29 +382,72 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 
 				// *nextEdgeForAnt now points to our chosen edge.
 				nextEdgeForAnt = *it;
+				const int *n = nextEdgeForAnt->getNodes();
+				int n0 = n[0], n1 = n[1];
+				(*antIt).addEdge(nextEdgeForAnt);
 				currNode = nextEdgeForAnt->getConnectingNode(currNode);
 
-				std::cout << "Ant "<<k<<" goes to node "<<currNode<<std::endl;
+				//std::cout << "\tAnt goes to node "<<currNode<<std::endl;
 				//std::cin.get();
 			}
 		}
 
+		// Begin the global updating
+		float bestCost = 0;
+
 		// Evaluate each ant
-		for ( int k=0; k<nbrAnts; ++k )
+		for ( antIt=ants.begin(); antIt != ants.end();  )
 		{
+
+			float cost = (*antIt).getCost() ;
+			//std::cout << "Ant has cost "<<cost<<std::endl;
 			// Does the ant adhere to the cost restraints?
-			if ( ants[k].getCost() > Cmax )
+			if ( (*antIt).getCost() > Cmax )
 			{
+				// remove this ant and move iterator forward
+				antIt = ants.erase(antIt);
+				std::cout << "Removed ant for breaking cost restraint\n";
 				continue;
+
 			}
-
-
+			else if ( (*antIt).getCost() > bestCost )
+			{
+				bestCost = (*antIt).getCost();
+				(*antIt).estReliabilityMC( MCiterations );
+			}
+			// And increase iterator
+			++antIt;
 		}
+
+		// The remaining ants are all valid solutions
 
 		// Perform the global updating rule
 
+		// Loop over each link in each ant and update tau
+		for (antIt = ants.begin(); antIt != ants.end(); ++antIt)
+		{
+			std::vector<edge*>::iterator edgeIt;
+			std::vector<edge*> *antEdges = (*antIt).getEdges();
+			for (edgeIt = antEdges->begin(); edgeIt != antEdges->end();++edgeIt)
+			{
+				// deltaTau is a matrix containing the deltaTau's for this global update
+				// Go through all the links and add to deltaTau accordingly
+				int n1 = (*edgeIt)->getConnectingNode();
+				int n2 = (*edgeIt)->getConnectingNode(n1);
 
+				float C = (*edgeIt)->getCost() / bestCost;
+				float penalty = 0.9*(*antIt).getLatestReliability()+0.1;
+				float deltaTau = Q*C*penalty;
 
+				// The next step is to update the network's pheromone levels with this new deltaTau'
+				float oldTau = (*edgeIt)->acoGetTau();
+				float newTau = deltaTau + rho * oldTau;
+
+				(*edgeIt)->acoSetTau( newTau );
+			}
+		}
+
+		std::cout << "Starting new iteration\n";
 	}
 
 	return NO_ERROR;
@@ -405,7 +465,6 @@ int Graph::loadEdgeData( const char* filename, bool quiet )
     {
         // Opening file went oke
 
-		biggestNodeId=0;
         std::string line;
         getline( file, line );
         double reliabilityPerNode;
@@ -452,6 +511,9 @@ int Graph::loadEdgeData( const char* filename, bool quiet )
 					// Add the edge to our vector
 					edge* e = new edge( n1, n2, reliabilityPerNode );
 					edges.push_back( e );
+
+					if (n1>2000 || n2>2000)
+						std::cout << "Large n...\n";
 
 					// For later optimization (let each node know what edges are connecting)
 					// we want to know the largest node id.
@@ -519,13 +581,25 @@ void Graph::cleanup()
 		delete [] connectingEdges;
 		connectingEdges = 0;
 	}
+
+
+	// DO NOT DELETE EDGES HERE, do it in finalCleanup instaed
+	/*for ( it = edges.begin(); it < edges.end() ; ++it )
+	{
+		delete *it;
+	}
+	edges.clear();
+	*/
+}
+
+void Graph::finalCleanup()
+{
 	std::vector<edge*>::iterator it;
 	for ( it = edges.begin(); it < edges.end() ; ++it )
 	{
 		delete *it;
 	}
 	edges.clear();
-	biggestNodeId = 0;
 }
 
 
