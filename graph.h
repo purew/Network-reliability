@@ -170,7 +170,7 @@ private:
 
 /** Use ACO to find a near-optimal solution that maximizes reliability
 	given a cost restraint of Cmax. */
-int acoFindOptimal( Graph *network, int Nmax, int Cmax, int nbrAnts=10 );
+int acoFindOptimal( Graph *network, int Nmax,  int nbrAnts=10, int maxEdges=0 );
 
 
 

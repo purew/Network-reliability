@@ -308,15 +308,20 @@ void doPercolationCalculation(Graph* network)
 
 
 
-int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
+int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 {
 	// Some parameters for the ACO algorithm
-	float Q = 4; 		// Determines the deltaTau
-	float rho = 0.9; 	// How fast old trails evaporate
-	int MCiterations = 10000;	// How many iterations performed in Monte carlo
+	float Q = 0.5; 		// Determines the deltaTau
+	float rho = 0.90; 	// How fast old trails evaporate
+	int MCiterations = 1e4;	// How many iterations performed in Monte carlo
 								// TODO: Should probably depend on number of links
 	float a = 2;		// Exponent to C/C*
+	float b = a;		// Exponent to reliability/bestReliability
 
+
+
+	std::cout << "Starting ACO with parameters: ";
+	std::cout << "Nmax="<<Nmax<<" nbrAnts="<<nbrAnts<< " maxLinks="<<maxLinksInSolution <<std::endl;
 
 	Ant *bestAnt=0;
 
@@ -327,49 +332,78 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 		(*it)->hardReset();
 
 	int allNodes = nw->getBiggestNodeId();
-'
 
 
-	// Generate K=nbrAnts solutions
-	std::list<Ant> ants;
-	for (int i=0; i < nbrAnts; ++i)
-	{
-		// Initialize the list by allocating new objects
-		int size = nw->getEdges()->size();
-		Ant *ant = new Ant(size);
-		ants.push_back(*ant);
-	}
+
+	std::list<Ant*> ants;
+
 
 	for ( int N=0; N<Nmax; ++N )
 	{
 
+		// Generate K=nbrAnts solutions
 
 
+		for (int i=ants.size(); i < nbrAnts; ++i)
+		{
+			// Initialize the list by allocating new objects
+			int size = nw->getEdges()->size();
+			Ant *ant = new Ant(size);
+			ants.push_back(ant);
+			//std::cout << "Creating \t"<<ant<<std::endl;
+		}
 
 
+		// Find the ant's paths
 
-		std::list<Ant>::iterator antIt;
+		std::list<Ant*>::iterator antIt;
 		for ( antIt=ants.begin(); antIt != ants.end(); ++antIt )
 		{
+
+
+			// If this is the best solution from the last iteration
+			// the path is already known
+			if (*antIt == bestAnt)
+				continue;
+
+
+
+			// Pick one edge at random, roll the dice, compare to the pheromones
+			// and add the edge to the ant's path if dice is high enough
+			// do this as many times as needed to get maxCost edges
 			std::vector<Edge*> &edges = *(nw->getEdges());
-			int size = edges.size();
-			for ( int i=0; i<size; ++i )
+			int maxEdges = edges.size();
+
+			// Keep adding links to this ant until enough have been chosen.
+			// Pick one link at random, roll the dice and compare with pheromones
+			int nbrAddedLinks=0;
+			int addedLinks[edges.size()];
+			for (int i=0;i<edges.size();++i)
+				addedLinks[i]=0;
+
+			while ( nbrAddedLinks < maxLinksInSolution )
 			{
+
+				int i =  maxEdges* randomNbrGenerator();
+				// Pick a random link
+
+				// Is this link already chosen?
+				if ( addedLinks[i] )
+					continue;
+
 				// Calculate the probability to choose this link
 				float sumTaus = edges[i]->getSumTau();
 				float p=		edges[i]->getTau(1) / sumTaus;
 
-				// p is now the probability that this edge is working (level=1)
+				// p is now the probability that this edge is chosen (level=1)
 				// This assumes only on/off state of the link
-
 				if ( p > randomNbrGenerator() )
 				{
-					(*antIt).addEdge( edges[i] );
-					(*antIt).setLinkLevel( i, 1);
-
+					(*antIt)->addEdge( edges[i] );
+					(*antIt)->setLinkLevel( i, 1); // Path was chosen
+					++nbrAddedLinks;
+					addedLinks[i]=1;
 				}
-				else
-					(*antIt).setLinkLevel( i, 0);
 			}
 		}
 
@@ -378,40 +412,27 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 		float bestReliability = 0;
 
 		// Evaluate each ant
-		for ( antIt=ants.begin(); antIt != ants.end();  )
+		for ( antIt=ants.begin(); antIt != ants.end(); ++antIt )
 		{
 
 			//std::cout << "size of antIt edges: " <<(*antIt).getEdges()->size();
-			float cost = (*antIt).getCost() ;
-			float reliability = (*antIt).estReliabilityMC( MCiterations, true );
+			float cost = (*antIt)->getCost() ;
+			float reliability = (*antIt)->estReliabilityMC( MCiterations, true );
 
-			// Does the ant adhere to the cost restraints?
-			if ( cost > Cmax )
-			{
-				// remove this ant and move iterator forward
-				//antIt = ants.erase(antIt);
-				//std::cout << "Removed ant for breaking cost restraint\n";
-				//continue;
-			}
-			else if ( reliability > bestReliability )
+
+			if ( reliability > bestReliability )
 			{
 				bestCost = cost;
 				bestReliability = reliability;
 
-				bestAnt = &(*antIt);
+				bestAnt = (*antIt);
 			}
-
-			//std::cout << "Rel: "<< reliability <<" cost: "<<cost<<std::endl;
-			// And increase iterator
-			++antIt;
 		}
 
 
-		if ( bestAnt!=0  && N+1==Nmax)
-			bestAnt->printEdges();
 		if ( N+1 == Nmax )
 			bestReliability = bestAnt->estReliabilityMC(10*MCiterations, true);
-		std::cout << "Best reliability "<<bestReliability<< " cost: "<<bestCost<<std::endl;
+		std::cout << "Best ant: "<<bestAnt<< " reliability: "<<bestReliability<< " cost: "<<bestCost<<std::endl;
 
 
 		// The remaining ants are all valid solutions
@@ -419,9 +440,9 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 		// Perform the global updating rule
 
 		// Loop over each link in each ant and update tau
-		for (antIt = ants.begin(); antIt != ants.end(); ++antIt)
+		for (antIt = ants.begin(); antIt != ants.end();)
 		{
-
+			//std::cout << "Accessing \t"<<*antIt<<std::endl;
 
 			// Iterate over ALL edges and apply pheromones accordingly
 			// This means, iterate over ant. which says if link i is working or not
@@ -432,14 +453,16 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 				for ( int level=0; level<Edge::maxLevels; ++level )
 				{
 					float deltaTau;
-					if ( (*antIt).getLinkLevel(i) == level )
+					if ( (*antIt)->getLinkLevel(i) == level )
 					{
 
 						float C = (*allEdges)[i]->getCost() / bestCost;
-						C		= pow( C, a );
-						float reliability = (*antIt).getLatestReliability();
-						float penalty = 5*reliability+0.1;
-						deltaTau = Q*C*penalty;
+						float reliability = (*antIt)->getLatestReliability();
+
+						float D = pow(reliability/bestReliability, b);
+						//float penalty = 5*reliability+0.1;
+
+						deltaTau = Q*C*D;
 					}
 					else
 					{
@@ -448,6 +471,7 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 					// The next step is to update the network's pheromone levels with this new deltaTau'
 					float oldTau = (*allEdges)[i]->getTau( level );
 					float newTau = deltaTau + rho * oldTau;
+					//std::cout << "ratio delta/old= "<<deltaTau/oldTau<<std::endl;
 
 					(*allEdges)[i]->setTau( level, newTau );
 
@@ -456,11 +480,34 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 				//std::cout << "New tau for "<< i<<": "<< (*allEdges)[i]->getTau( 1 )<<std::endl;
 			}
 
+
+
+			// Reset all the solutions except for the best one
+			// Keep the best one unchanged.
+			if (*antIt != bestAnt )
+			{
+				//std::cout << "deleting \t"<< *antIt<<std::endl;
+				delete *antIt;
+				antIt = ants.erase(antIt);
+			}
+			else
+			{
+				++antIt;
+			}
+
+			std::ofstream f("data/reliability.graph", std::ios_base::app);
+			f << bestReliability << " ";
+			f.close();
+
 		}
+
 
 		//std::cout << "Starting new iteration\n";
 	}
 
+	std::cout << "Links chosen by the best ant:\n";
+	bestAnt->printEdges();
+	delete bestAnt;
 
 	return NO_ERROR;
 }

@@ -31,6 +31,8 @@ struct sArgs
 	modes mode;
 	bool rawFormat;
 	int maxCost;
+	int Nmax;
+	int nbrAnts;
 };
 
 /** Parse the arguments, supply default values and return a struct with complete parameters. */

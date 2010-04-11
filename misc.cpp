@@ -34,6 +34,23 @@ sArgs parseArguments( int argv, char** argc )
 					std::cout << "ERROR: maxCost was not chosen\n";
 			}
 			else std::cout << "ERROR: Must specify maxCost after --aco\n";
+
+			if ( i+2<argv )
+			{
+				args.Nmax=atoi( argc[i+2] );
+				if ( args.Nmax == 0)
+					args.Nmax = 10;
+			}
+			else args.Nmax = 10;
+
+			if ( i+3<argv )
+			{
+				args.nbrAnts=atoi( argc[i+3] );
+				if ( args.nbrAnts == 0)
+					args.nbrAnts = 3;
+			}
+			else args.nbrAnts = 3;
+
 		}
 		else if ( strcmp(argc[i], "--percolation") == 0 )
 			args.mode = PERCOLATION;

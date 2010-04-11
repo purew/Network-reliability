@@ -3,6 +3,9 @@
 A research project dedicated to examining the reliability of certain network
 structures using optimization techniques such as Ant Colony Optimization.
 
+Run ant colony on a nwk-file by entering:
+	./main -f <nwk-file> -aco <max wanted links> <iterations> <ants>
+
 If the graphical frontend is wanted, glfw, glpng, freetype6 are required libraries.
 
 
