@@ -31,11 +31,12 @@ enum errors {   NO_ERROR=0,
 
 /** A class representing the edge in our graph.
     The edge goes both ways. */
-class edge
+class Edge
 {
 public:
 	/** Constructor takes two nodes as argument, and optionally reliability and cost. */
-    edge( int n1, int n2, float reliability = 0.8, float cost=1.0 );
+    Edge( int n1, int n2, float reliability = 0.8, float cost=1.0 );
+	~Edge();
 
     /** Returns an array with two elements containing the connected nodes. */
     const int* getNodes() { return n; };
@@ -45,9 +46,9 @@ public:
 
 	/** Reset the edge to working condition if it has failed. If the node is disabled a hard reset must be used.*/
 	void reset();
-	/** Reset the edge no matter the current status. */
-	void hardReset() { working=1;};
-	/** Disable the edge, only a hard reset will make it functional agian. */
+	/** Reset the edge no matter the current status. Also resets the pheromones.*/
+	void hardReset();
+	/** Disable the edge, only a hard reset will make it functional again. */
 	void disable() { working = -1;};
 
 	bool isWorking() {return working==1;};
@@ -57,16 +58,20 @@ public:
 	void setReliability( double newReliability ) {reliability = newReliability;};
 	double getReliability() {return reliability;};
 
-	/** Get the pheromone level on this link. */
-	float acoGetTau() {return acoTau;};
-	/** Set the pheromone level on this link. */
-	void acoSetTau(float tau ) { acoTau = tau; };
+	/** Get the pheromones on this link for the chosen level. Level=0 means link is not used. */
+	float getTau(int level) {return acoTau[level];};
+	/** Return the sum of the pheromones over all working levels.*/
+	float getSumTau();
+	/** Set the pheromones on this link the chosen level. Level=0 means link is not used. */
+	void setTau(int level, float tau );
 
 	/** Set the probability to choose this link from origin-node. */
 	void acoSetPFromNode( int origin, float p) {(origin==n[0])? acoP[0]=p: acoP[1]=p;};
 	/** Get the probability to choose this link from origin-node. */
 	float acoGetPFromNode( int origin ) {if (origin==n[0]) return acoP[0]; else return acoP[1];};
 
+	/** How many levels can the link do? Our problem treats binary (on/off). */
+	const static int maxLevels = 2;
 
 private:
 	int n[2];
@@ -75,7 +80,8 @@ private:
     float cost;
     double reliability;
 
-	float acoTau;		//!< The pheromone level on this link
+
+	float *acoTau;		//!< The pheromones on this link
 	/** acoP[i] is the probability of this link to be chosen from node i */
 	float acoP[2];
 };
@@ -102,13 +108,13 @@ public:
 
 	/** Add an arbitrary edge to the network.
 		Returns 0 on success and 1 if the edge already exists in this graph. */
-	int addEdge( edge* e );
+	int addEdge( Edge* e );
 
 	int getBiggestNodeId() {return biggestNodeId;};
 
-	std::vector<edge*>* getConnectingEdges() {return connectingEdges;};
-	std::vector<edge*>* getConnectingEdges(int n) {return &(connectingEdges[n]);};
-	std::vector<edge*>* getEdges() {return &edges;};
+	std::vector<Edge*>* getConnectingEdges() {return connectingEdges;};
+	std::vector<Edge*>* getConnectingEdges(int n) {return &(connectingEdges[n]);};
+	std::vector<Edge*>* getEdges() {return &edges;};
 
 	/** Change the reliability of all edges */
 	void setEdgeReliability( double newReliability );
@@ -128,7 +134,7 @@ public:
 	Returns the estimated reliability. */
 	float estReliabilityMC(  int t=1000, bool rawFormat=false );
 	/** Returns the latest estimated reliability.*/
-	float getLatestReliability() {return latestEstimatedReliability;};
+	float getLatestReliability();
 
 	/** Return the cost of this network.*/
 	float getCost() {return edges.size();};
@@ -145,7 +151,7 @@ private:
 
 	/** Helper function for estReliabilityMC, contains the recursion.
 		nc is the current node, and nf is the target. */
-	bool unfoldGraph( int nc, std::vector<edge*> *connectingEdges, bool *visitedNodes );
+	bool unfoldGraph( int nc, std::vector<Edge*> *connectingEdges, bool *visitedNodes );
 
 
     static int biggestNodeId;	//!< Used for keeping track of the nodes (TODO, a vector would be better)
@@ -154,8 +160,8 @@ private:
 
 	float latestEstimatedReliability;
 
-    std::vector<edge*> *connectingEdges; 	//!< Array of lists of edge*, arranged after nodes
-	std::vector<edge*> edges;				//!< All edge*s
+    std::vector<Edge*> *connectingEdges; 	//!< Array of lists of edge*, arranged after nodes
+	std::vector<Edge*> edges;				//!< All edge's
 
 };
 

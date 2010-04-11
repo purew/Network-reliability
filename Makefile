@@ -6,9 +6,9 @@ CXXFLAGS= -Wall -O3
 CFLAGS 	= $(CXXFLAGS)
 LDFLAGS+=
 
-DEPS 	= graph.h misc.h
-SOURCES	= graph.cpp main.cpp misc.cpp
-OBJECTS = graph.o   misc.o main.o
+DEPS 	= graph.h misc.h ants.h
+SOURCES	= graph.cpp main.cpp misc.cpp ants.cpp
+OBJECTS = graph.o   misc.o main.o ants.o
 
 
 # Make the object-files depend on the c- and h-files

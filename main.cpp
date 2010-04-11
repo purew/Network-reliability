@@ -49,8 +49,8 @@ int main(int argv, char **argc)
 		}
 		else if ( args.mode == FIND_OPTIMAL_ACO )
 		{
-			std::cout << "Starting ACO for file "<< args.filename.c_str() << std::endl;
-			int result = acoFindOptimal(&network, 100, 13,110);
+			std::cout << "Starting ACO for file "<< args.filename.c_str()<<" with maxCost="<<args.maxCost << std::endl;
+			int result = acoFindOptimal(&network, 60, args.maxCost,10);
 
 			std::cout << "ACO returned "<<result<<std::endl;
 		}

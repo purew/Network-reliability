@@ -30,6 +30,7 @@ struct sArgs
 	std::string filename;
 	modes mode;
 	bool rawFormat;
+	int maxCost;
 };
 
 /** Parse the arguments, supply default values and return a struct with complete parameters. */

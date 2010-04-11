@@ -1,6 +1,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <cstdlib>
 #include "misc.h"
 
 MTRand randomNbrGenerator;
@@ -20,23 +21,22 @@ sArgs parseArguments( int argv, char** argc )
 			if (i+1<argv)
 				args.filename = argc[i+1];
 		}
-		else if ( strcmp(argc[i], "--mode")==0 || strcmp(argc[i], "-m") == 0 )
+		else if ( strcmp(argc[i], "--aco") == 0 )
 		{
 			if ( i+1<argv )
 			{
-				if ( strcmp(argc[i+1], "test")==0 )
-					args.mode = DESIGN_NEW_NETWORK;
-
-				else if ( strcmp(argc[i+1], "percolation")==0 )
-					args.mode = PERCOLATION;
-
-				else if ( strcmp(argc[i+1], "find_optimal_aco")==0 )
-					args.mode = FIND_OPTIMAL_ACO;
-
-				else std::cout << "ERROR: "<<argc[i+1]<<" is not a valid mode\n";
+				args.mode = FIND_OPTIMAL_ACO;
+				args.maxCost=atoi( argc[i+1] );
+				if ( args.maxCost == 0)
+/*					std::cout << "************************************\n"
+						"    No maxCost specified for ACO.\n"
+						"**********************************\n";*/
+					std::cout << "ERROR: maxCost was not chosen\n";
 			}
-			else std::cout << "A mode must follow --mode, examples \"test\" or \"percolation\"\n";
+			else std::cout << "ERROR: Must specify maxCost after --aco\n";
 		}
+		else if ( strcmp(argc[i], "--percolation") == 0 )
+			args.mode = PERCOLATION;
 		else if ( strcmp(argc[i], "--raw")==0 || strcmp(argc[i], "-r")==0 )
 		{
 			args.rawFormat = true;

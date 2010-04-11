@@ -13,6 +13,7 @@
 #include <vector>
 #include <list>
 #include <cstdlib>
+#include <cmath>
 
 #include "misc.h"
 #include "graph.h"
@@ -26,7 +27,7 @@
 ////////////////////////////////////////////////////////////
 
 
-edge::edge( int n1, int n2, float _reliability, float _cost )
+Edge::Edge( int n1, int n2, float _reliability, float _cost )
 {
 	if (n1<n2)
 	{
@@ -42,16 +43,51 @@ edge::edge( int n1, int n2, float _reliability, float _cost )
     reliability = _reliability;
     cost = _cost;
     working = true;
-    acoTau = 1;
-}
 
-void edge::reset()
+	acoTau = new float[maxLevels];
+    for ( int i=0; i<maxLevels; ++i )
+    {
+		acoTau[i] = 1;
+    }
+	//std::cout << "Calling edge constructor... " << this<< " "<<acoTau[0]<<" "<<acoTau[1]<<std::endl;
+
+}
+void Edge::setTau(int level, float tau )
 {
-	acoTau=1;
+	if (level>=maxLevels)
+		throw "level is too big in setTau";
+	acoTau[level] = tau;
+
+
+}
+void Edge::reset()
+{
+
 	cost=1;
 	if ( working >= 0 )
 		working = 1;
+}
+void Edge::hardReset()
+{
+	for ( int i=0; i<maxLevels; ++i )
+	{
+		acoTau[i] = 1;
+	}
+	 working=1;
+	reset();
+}
+float Edge::getSumTau()
+{
+	float sum=0;
+	for (int i=0; i<maxLevels; ++i)
+		sum += acoTau[i];
+	return sum;
+}
 
+Edge::~Edge()
+{
+	delete[] acoTau;
+	acoTau =0;
 }
 
 ////////////////////////////////////////////////////////////
@@ -65,20 +101,22 @@ int Graph::biggestNodeId = 0;
 
 void Graph::setEdgeReliability( double newReliability )
 {
-	std::vector<edge*>::iterator it;
+	std::vector<Edge*>::iterator it;
 		for ( it = edges.begin(); it < edges.end() ; ++it )
 			(*it)->setReliability( newReliability );
 }
 
-int Graph::addEdge( edge *e )
+int Graph::addEdge( Edge *e )
 {
+
+
 	// Dont forget to initialize connectingEdges if this is a new graph
 	// Use the static biggestNodeId as size (loadEdgeData has to be called first).
 	if ( connectingEdges == 0 )
-		connectingEdges = new std::vector<edge*>[biggestNodeId+1];
+		connectingEdges = new std::vector<Edge*>[biggestNodeId+1];
 
 	// Check so that e does not already exist in the list
-	std::vector<edge*>::iterator it;
+	std::vector<Edge*>::iterator it;
 	for ( it = edges.begin(); it != edges.end(); ++it)
 		if ( *it == e )
 			return 1;
@@ -88,6 +126,9 @@ int Graph::addEdge( edge *e )
 	int n0 = n[0], n1 = n[1];
 	connectingEdges[n[0]].push_back(e);
 	connectingEdges[n[1]].push_back(e);
+
+	// Network has changed, the estimated reliability does not apply anymore
+	latestEstimatedReliability = -1;
 	return 0;
 }
 
@@ -98,7 +139,7 @@ void Graph::disableXEdges( unsigned int F )
 		F = edges.size();
 
 	// First reset the edges
-	std::vector<edge*>::iterator it;
+	std::vector<Edge*>::iterator it;
 	for ( it = edges.begin(); it < edges.end() ; ++it )
 			(*it)->reset();
 
@@ -118,8 +159,8 @@ void Graph::disableXEdges( unsigned int F )
 
 void Graph::hardResetEdges()
 {
-	std::vector<edge*>::iterator it;
-	for ( it = edges.begin(); it < edges.end() ; ++it )
+	std::vector<Edge*>::iterator it;
+	for ( it = edges.begin(); it != edges.end() ; ++it )
 		(*it)->hardReset();
 
 }
@@ -134,19 +175,19 @@ float Graph::estReliabilityMC( int t, bool rawFormat)
 	for ( int i=0;i<t; ++i )
 	{
 		// Reset all edges to working state
-		std::vector<edge*>::iterator it;
-		for ( it = edges.begin(); it < edges.end() ; ++it )
-				(*it)->reset();
-
+		std::vector<Edge*>::iterator it;
+		for ( it = edges.begin(); it != edges.end() ; ++it )
+		{
+			(*it)->reset();
+		}
 		// Make some edges fail, with i.i.d. bernoulli-RV's.
-		for ( it = edges.begin(); it < edges.end() ; ++it )
+		for ( it = edges.begin(); it != edges.end() ; ++it )
 		{
 			if ( randomNbrGenerator() > (*it)->getReliability() )
 			{
 				// This link failed!
 				(*it)->setWorking( 0 );
 			}
-
 		}
 
 		// Keep an array for all visited nodes.
@@ -185,15 +226,16 @@ float Graph::estReliabilityMC( int t, bool rawFormat)
 		std::cout << "All-terminal reliability = " << (float)(workingAllTerminalNetworks)/t  << ", calculated from "<< t <<" simulations\n";
 	}
 
-	return (float)workingAllTerminalNetworks/t;
+	latestEstimatedReliability = (float)workingAllTerminalNetworks/t;
+	return latestEstimatedReliability;
 }
 
-bool Graph::unfoldGraph( int nc,  std::vector<edge*> *connectingEdges, bool *visitedNodes )
+bool Graph::unfoldGraph( int nc,  std::vector<Edge*> *connectingEdges, bool *visitedNodes )
 {
 	//std::cout << "Iterating over edges connected to " << nc << std::endl;
 	visitedNodes[nc] = true;
 
-	std::vector<edge*>::iterator it;
+	std::vector<Edge*>::iterator it;
 	for ( it = connectingEdges[nc].begin(); it < connectingEdges[nc].end() ; ++it )
 	{
 		//std::cout << "  Checking "<<(*it)->n[0]<<(*it)->n[1]<<" Status="<<(*it)->isWorking()<<std::endl;
@@ -264,160 +306,113 @@ void doPercolationCalculation(Graph* network)
 	datafile.close();
 }
 
+
+
 int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 {
 	// Some parameters for the ACO algorithm
-	float Q = 1; 		// Determines the deltaTau
-	float rho = 0.8; 	// How fast old trails evaporate
-	int MCiterations = 1000;	// How many iterations performed in Monte carlo
+	float Q = 4; 		// Determines the deltaTau
+	float rho = 0.9; 	// How fast old trails evaporate
+	int MCiterations = 10000;	// How many iterations performed in Monte carlo
 								// TODO: Should probably depend on number of links
+	float a = 2;		// Exponent to C/C*
 
+
+	Ant *bestAnt=0;
 
 	// Initialize the pheromones to tau_0, by resetting the edges
 	// Reset all edges to working state
-	std::vector<edge*>::iterator it;
-	for ( it = nw->getEdges()->begin(); it < nw->getEdges()->end() ; ++it )
-		(*it)->reset();
+	std::vector<Edge*>::iterator it;
+	for ( it = nw->getEdges()->begin(); it != nw->getEdges()->end() ; ++it )
+		(*it)->hardReset();
 
 	int allNodes = nw->getBiggestNodeId();
+'
+
+
+	// Generate K=nbrAnts solutions
+	std::list<Ant> ants;
+	for (int i=0; i < nbrAnts; ++i)
+	{
+		// Initialize the list by allocating new objects
+		int size = nw->getEdges()->size();
+		Ant *ant = new Ant(size);
+		ants.push_back(*ant);
+	}
 
 	for ( int N=0; N<Nmax; ++N )
 	{
 
-		// Calculate the denominator (sum of pheromones) in the expression for the probabilities
-		float sumTaus[nw->getBiggestNodeId()];
-		for ( int n=0; n<=nw->getBiggestNodeId(); ++n )
-		{
-			// Loop over all links connecting node n, and sum up the pheromones
-			sumTaus[n] = 0;
-			std::vector<edge*>::iterator it;
-
-			for ( it = nw->getConnectingEdges(n)->begin(); it < nw->getConnectingEdges(n)->end() ; ++it )
-				sumTaus[n] += (*it)->acoGetTau();
-
-		}
-
-		// Calculate the probabilites to choose each link
-		for ( int n=0; n<=nw->getBiggestNodeId(); ++n )
-		{
-			std::vector<edge*>::iterator it;
-			for (it = nw->getConnectingEdges(n)->begin(); it < nw->getConnectingEdges(n)->end(); ++it )
-			{
-				float p = (*it)->acoGetTau()/sumTaus[n];
-				(*it)->acoSetPFromNode( n, p );
-
-			}
-		}
 
 
-		// Generate K=nbrAnts solutions
-		std::list<Ant> ants(nbrAnts);
+
+
 
 		std::list<Ant>::iterator antIt;
 		for ( antIt=ants.begin(); antIt != ants.end(); ++antIt )
 		{
-			//std::cout << "Placing a new ant...\n";
-			// Start in a random node
-			int currNode = randomNbrGenerator.randExc(nw->getBiggestNodeId());
-			edge *nextEdgeForAnt=0;
-
-			int nbrNodesVisited = 0;
-			char visitedNodes[nw->getBiggestNodeId()+1];
-			for (int i=0; i<=nw->getBiggestNodeId(); ++i)
-				visitedNodes[i] =0;
-
-
-
-			// Loop until all nodes have been visited.
-			// This MUST be effective, the ant cannot keep walking
-			// without reaching the last nodes...
-			int visitedNodesInARow = 0;
-			while ( nbrNodesVisited < allNodes )
+			std::vector<Edge*> &edges = *(nw->getEdges());
+			int size = edges.size();
+			for ( int i=0; i<size; ++i )
 			{
-				// Is this node a new node?
-				if ( visitedNodes[currNode]==false )
+				// Calculate the probability to choose this link
+				float sumTaus = edges[i]->getSumTau();
+				float p=		edges[i]->getTau(1) / sumTaus;
+
+				// p is now the probability that this edge is working (level=1)
+				// This assumes only on/off state of the link
+
+				if ( p > randomNbrGenerator() )
 				{
-					visitedNodes[currNode] = true;
-					++nbrNodesVisited;
-					visitedNodesInARow = 0;
-					// Are we breaking the cost restraint with this new link?
-					if ( (*antIt).getCost() > Cmax )
-						break;
+					(*antIt).addEdge( edges[i] );
+					(*antIt).setLinkLevel( i, 1);
+
 				}
 				else
-				{
-					visitedNodesInARow += 1;
-				}
-
-
-				// If the ant has been walking for a long time without finding new nodes,
-				// pick it up and place it on a not yet visited node.
-				if ( visitedNodesInARow > Ant::maxWalkWithoutNewNode )
-				{
-					// find a not yet visited node:
-					int n;
-					for ( n=0; n <= nw->getBiggestNodeId(); ++n)
-						if (visitedNodes[n]==false)
-							break;
-					currNode = n;
-					continue;
-				}
-
-
-				// Continue to the next node
-
-				// Pick a random number and do roulette wheel selection
-				float rnd = randomNbrGenerator();
-				float sumP = 0;
-
-				std::vector<edge*>::iterator it;
-				for (it = nw->getConnectingEdges(currNode)->begin();
-					it < nw->getConnectingEdges(currNode)->end();
-					++it )
-				{
-					sumP += (*it)->acoGetPFromNode( currNode );
-					if ( rnd < sumP )
-						break;
-				}
-
-				// *nextEdgeForAnt now points to our chosen edge.
-				nextEdgeForAnt = *it;
-				const int *n = nextEdgeForAnt->getNodes();
-				int n0 = n[0], n1 = n[1];
-				(*antIt).addEdge(nextEdgeForAnt);
-				currNode = nextEdgeForAnt->getConnectingNode(currNode);
-
-				//std::cout << "\tAnt goes to node "<<currNode<<std::endl;
-				//std::cin.get();
+					(*antIt).setLinkLevel( i, 0);
 			}
 		}
 
 		// Begin the global updating
 		float bestCost = 0;
+		float bestReliability = 0;
 
 		// Evaluate each ant
 		for ( antIt=ants.begin(); antIt != ants.end();  )
 		{
 
+			//std::cout << "size of antIt edges: " <<(*antIt).getEdges()->size();
 			float cost = (*antIt).getCost() ;
-			//std::cout << "Ant has cost "<<cost<<std::endl;
+			float reliability = (*antIt).estReliabilityMC( MCiterations, true );
+
 			// Does the ant adhere to the cost restraints?
-			if ( (*antIt).getCost() > Cmax )
+			if ( cost > Cmax )
 			{
 				// remove this ant and move iterator forward
-				antIt = ants.erase(antIt);
-				std::cout << "Removed ant for breaking cost restraint\n";
-				continue;
-
+				//antIt = ants.erase(antIt);
+				//std::cout << "Removed ant for breaking cost restraint\n";
+				//continue;
 			}
-			else if ( (*antIt).getCost() > bestCost )
+			else if ( reliability > bestReliability )
 			{
-				bestCost = (*antIt).getCost();
-				(*antIt).estReliabilityMC( MCiterations );
+				bestCost = cost;
+				bestReliability = reliability;
+
+				bestAnt = &(*antIt);
 			}
+
+			//std::cout << "Rel: "<< reliability <<" cost: "<<cost<<std::endl;
 			// And increase iterator
 			++antIt;
 		}
+
+
+		if ( bestAnt!=0  && N+1==Nmax)
+			bestAnt->printEdges();
+		if ( N+1 == Nmax )
+			bestReliability = bestAnt->estReliabilityMC(10*MCiterations, true);
+		std::cout << "Best reliability "<<bestReliability<< " cost: "<<bestCost<<std::endl;
+
 
 		// The remaining ants are all valid solutions
 
@@ -426,29 +421,46 @@ int acoFindOptimal( Graph *nw, int Nmax, int Cmax, int nbrAnts )
 		// Loop over each link in each ant and update tau
 		for (antIt = ants.begin(); antIt != ants.end(); ++antIt)
 		{
-			std::vector<edge*>::iterator edgeIt;
-			std::vector<edge*> *antEdges = (*antIt).getEdges();
-			for (edgeIt = antEdges->begin(); edgeIt != antEdges->end();++edgeIt)
+
+
+			// Iterate over ALL edges and apply pheromones accordingly
+			// This means, iterate over ant. which says if link i is working or not
+			std::vector<Edge*> *allEdges = nw->getEdges();
+			int maxLinks = allEdges->size();
+			for ( int i=0; i<maxLinks; ++i )
 			{
-				// deltaTau is a matrix containing the deltaTau's for this global update
-				// Go through all the links and add to deltaTau accordingly
-				int n1 = (*edgeIt)->getConnectingNode();
-				int n2 = (*edgeIt)->getConnectingNode(n1);
+				for ( int level=0; level<Edge::maxLevels; ++level )
+				{
+					float deltaTau;
+					if ( (*antIt).getLinkLevel(i) == level )
+					{
 
-				float C = (*edgeIt)->getCost() / bestCost;
-				float penalty = 0.9*(*antIt).getLatestReliability()+0.1;
-				float deltaTau = Q*C*penalty;
+						float C = (*allEdges)[i]->getCost() / bestCost;
+						C		= pow( C, a );
+						float reliability = (*antIt).getLatestReliability();
+						float penalty = 5*reliability+0.1;
+						deltaTau = Q*C*penalty;
+					}
+					else
+					{
+						deltaTau = 0;
+					}
+					// The next step is to update the network's pheromone levels with this new deltaTau'
+					float oldTau = (*allEdges)[i]->getTau( level );
+					float newTau = deltaTau + rho * oldTau;
 
-				// The next step is to update the network's pheromone levels with this new deltaTau'
-				float oldTau = (*edgeIt)->acoGetTau();
-				float newTau = deltaTau + rho * oldTau;
+					(*allEdges)[i]->setTau( level, newTau );
 
-				(*edgeIt)->acoSetTau( newTau );
+
+				}
+				//std::cout << "New tau for "<< i<<": "<< (*allEdges)[i]->getTau( 1 )<<std::endl;
 			}
+
 		}
 
-		std::cout << "Starting new iteration\n";
+		//std::cout << "Starting new iteration\n";
 	}
+
 
 	return NO_ERROR;
 }
@@ -459,6 +471,7 @@ int Graph::loadEdgeData( const char* filename, bool quiet )
 {
 	// CLEANUP: Empty the old vectors first
 	cleanup();
+	latestEstimatedReliability = -1;
 
     std::ifstream file( filename );
     if ( file.is_open() )
@@ -509,7 +522,7 @@ int Graph::loadEdgeData( const char* filename, bool quiet )
 					int n2 = atoi( line.c_str() );
 
 					// Add the edge to our vector
-					edge* e = new edge( n1, n2, reliabilityPerNode );
+					Edge* e = new Edge( n1, n2, reliabilityPerNode );
 					edges.push_back( e );
 
 					if (n1>2000 || n2>2000)
@@ -538,10 +551,10 @@ int Graph::loadEdgeData( const char* filename, bool quiet )
         // Given a node, we want to quickly find what edges are connecting to this node
         // Thus we keep an array of vectors, where each element in the array corresponds
         // to a node and holds a linked vector with all the connecting edges
-		connectingEdges = new std::vector<edge*>[biggestNodeId+1];
+		connectingEdges = new std::vector<Edge*>[biggestNodeId+1];
 
         // Now, go through edges and put each edge in the right element in connectingEdges
-		std::vector<edge*>::iterator it;
+		std::vector<Edge*>::iterator it;
 		for ( it = edges.begin(); it < edges.end() ; ++it )
 		{
 			//std::cout << (*it)->n[0] << " " << (*it)->n[1] << " " << biggestNodeId <<  std::endl;
@@ -569,6 +582,26 @@ int Graph::loadEdgeData( const char* filename, bool quiet )
         return FILE_OPEN_ERROR;
 }
 
+
+float Graph::getLatestReliability()
+{
+
+	if (latestEstimatedReliability < 0 )
+		estReliabilityMC(1000, true);
+	return latestEstimatedReliability;
+}
+
+void Graph::printEdges()
+{
+	std::cout << "Edge "<<this<<std::endl;
+	std::vector<Edge*>::iterator edgeIt;
+	for (edgeIt = edges.begin(); edgeIt != edges.end(); ++edgeIt)
+	{
+		int n0 = (*edgeIt)->getConnectingNode();
+		int n1 = (*edgeIt)->getConnectingNode(n0);
+		std::cout <<"  "<< n0 << " "<<n1<<" tau: "<<(*edgeIt)->getTau(1)/(*edgeIt)->getSumTau()<<std::endl;
+	}
+}
 void Graph::cleanup()
 {
 	if ( connectingEdges != 0 )
@@ -594,7 +627,7 @@ void Graph::cleanup()
 
 void Graph::finalCleanup()
 {
-	std::vector<edge*>::iterator it;
+	std::vector<Edge*>::iterator it;
 	for ( it = edges.begin(); it < edges.end() ; ++it )
 	{
 		delete *it;
@@ -605,7 +638,15 @@ void Graph::finalCleanup()
 
 Graph::Graph()
 {
-	connectingEdges = 0;
+	if (biggestNodeId != 0)
+	{
+		// The network is already initialized
+		connectingEdges = new std::vector<Edge*>[biggestNodeId+1];
+	}
+	else
+		connectingEdges = 0;
+
+	latestEstimatedReliability = -1;
 
 }
 

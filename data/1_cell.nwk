@@ -1,6 +1,4 @@
 type: edges
-start: 0
-end: 3
 prob: 0.8
 
 0 1
