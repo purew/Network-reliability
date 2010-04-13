@@ -44,22 +44,41 @@ Edge::Edge( int n1, int n2, float _reliability, float _cost )
     cost = _cost;
     working = true;
 
-	acoTau = new float[maxLevels];
+	tau = new float[maxLevels];
     for ( int i=0; i<maxLevels; ++i )
     {
-		acoTau[i] = 1;
+		tau[i] = 1;
     }
 	//std::cout << "Calling edge constructor... " << this<< " "<<acoTau[0]<<" "<<acoTau[1]<<std::endl;
+	deltaTau = new float[maxLevels];
+    for ( int i=0; i<maxLevels; ++i )
+    {
+		deltaTau[i] = 0;
+    }
 
 }
-void Edge::setTau(int level, float tau )
+void Edge::setTau(int level, float _tau )
 {
 	if (level>=maxLevels)
 		throw "level is too big in setTau";
-	acoTau[level] = tau;
+	tau[level] = _tau;
 
 
 }
+
+void Edge::addDeltaTau(int level, float _deltaTau)
+{
+	deltaTau[level] += _deltaTau;
+}
+void Edge::updateTau(float rho)
+{
+	for ( int i=0; i<maxLevels; ++i )
+		tau[i] = deltaTau[i] + rho*tau[i];
+	for ( int i=0; i<maxLevels; ++i )
+		deltaTau[i] =0;
+
+}
+
 void Edge::reset()
 {
 
@@ -71,8 +90,13 @@ void Edge::hardReset()
 {
 	for ( int i=0; i<maxLevels; ++i )
 	{
-		acoTau[i] = 1;
+		tau[i] = 1;
 	}
+	for ( int i=0; i<maxLevels; ++i )
+	{
+		deltaTau[i] = 0;
+	}
+
 	 working=1;
 	reset();
 }
@@ -80,14 +104,16 @@ float Edge::getSumTau()
 {
 	float sum=0;
 	for (int i=0; i<maxLevels; ++i)
-		sum += acoTau[i];
+		sum += tau[i];
 	return sum;
 }
 
 Edge::~Edge()
 {
-	delete[] acoTau;
-	acoTau =0;
+	delete[] tau;
+	tau =0;
+	delete[] deltaTau;
+	deltaTau=0;
 }
 
 ////////////////////////////////////////////////////////////
@@ -311,17 +337,17 @@ void doPercolationCalculation(Graph* network)
 int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 {
 	// Some parameters for the ACO algorithm
-	float Q = 0.5; 		// Determines the deltaTau
-	float rho = 0.90; 	// How fast old trails evaporate
+	float Q = 1.0; 		// Determines the deltaTau
+	float rho = 0.80; 	// How fast old trails evaporate
 	int MCiterations = 1e4;	// How many iterations performed in Monte carlo
 								// TODO: Should probably depend on number of links
-	float a = 2;		// Exponent to C/C*
+	float a = 1000;		// Exponent to C/C*
 	float b = a;		// Exponent to reliability/bestReliability
 
 
 
 	std::cout << "Starting ACO with parameters: ";
-	std::cout << "Nmax="<<Nmax<<" nbrAnts="<<nbrAnts<< " maxLinks="<<maxLinksInSolution <<std::endl;
+	std::cout << "Nmax="<<Nmax<<" nbrAnts="<<nbrAnts<< " maxLinks="<<maxLinksInSolution <<" b="<<b<<std::endl;
 
 	Ant *bestAnt=0;
 
@@ -439,47 +465,35 @@ int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 
 		// Perform the global updating rule
 
+
+		// Iterate over ALL edges and apply pheromones accordingly
+		// This means, iterate over ant. which says if link i is working or not
+		std::vector<Edge*> *allEdges = nw->getEdges();
+		int maxLinks = allEdges->size();
+		float deltaTau[maxLinks][Edge::maxLevels];
+		for (int i=0;i<maxLinks; ++i)
+			for ( int level=0; level<Edge::maxLevels; ++level )
+				deltaTau[i][level] = 0;
+
 		// Loop over each link in each ant and update tau
 		for (antIt = ants.begin(); antIt != ants.end();)
 		{
+
 			//std::cout << "Accessing \t"<<*antIt<<std::endl;
 
-			// Iterate over ALL edges and apply pheromones accordingly
-			// This means, iterate over ant. which says if link i is working or not
-			std::vector<Edge*> *allEdges = nw->getEdges();
-			int maxLinks = allEdges->size();
+			float reliability = (*antIt)->getLatestReliability();
+			float D = pow(reliability/bestReliability, b);
+
 			for ( int i=0; i<maxLinks; ++i )
 			{
-				for ( int level=0; level<Edge::maxLevels; ++level )
-				{
-					float deltaTau;
-					if ( (*antIt)->getLinkLevel(i) == level )
-					{
+				int level =  (*antIt)->getLinkLevel(i);
 
-						float C = (*allEdges)[i]->getCost() / bestCost;
-						float reliability = (*antIt)->getLatestReliability();
+				float reliability = (*antIt)->getLatestReliability();
+				float D = pow(reliability/bestReliability, b);
 
-						float D = pow(reliability/bestReliability, b);
-						//float penalty = 5*reliability+0.1;
+				deltaTau[i][level] += Q*D;
 
-						deltaTau = Q*C*D;
-					}
-					else
-					{
-						deltaTau = 0;
-					}
-					// The next step is to update the network's pheromone levels with this new deltaTau'
-					float oldTau = (*allEdges)[i]->getTau( level );
-					float newTau = deltaTau + rho * oldTau;
-					//std::cout << "ratio delta/old= "<<deltaTau/oldTau<<std::endl;
-
-					(*allEdges)[i]->setTau( level, newTau );
-
-
-				}
-				//std::cout << "New tau for "<< i<<": "<< (*allEdges)[i]->getTau( 1 )<<std::endl;
 			}
-
 
 
 			// Reset all the solutions except for the best one
@@ -495,18 +509,38 @@ int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 				++antIt;
 			}
 
-			std::ofstream f("data/reliability.graph", std::ios_base::app);
-			f << bestReliability << " ";
-			f.close();
 
 		}
 
+
+		// The next step is to update the network's pheromone levels with this new deltaTau
+		for (int i=0;i<maxLinks; ++i)
+		{
+			for ( int level=0; level<Edge::maxLevels; ++level )
+			{
+				// The next step is to update the network's pheromone levels with this new deltaTau
+				float oldTau = (*allEdges)[i]->getTau( level );
+				float newTau = deltaTau[i][level] + rho * oldTau;
+				(*allEdges)[i]->setTau(level, newTau);
+			}
+		}
+
+
+		std::ofstream f("data/reliability.graph", std::ios_base::app);
+		f << bestReliability << " ";
+		f.close();
 
 		//std::cout << "Starting new iteration\n";
 	}
 
 	std::cout << "Links chosen by the best ant:\n";
 	bestAnt->printEdges();
+	std::cout << "All links:\n";
+	nw->printEdges();
+
+	bestAnt->estReliabilityMC(10*MCiterations,false);
+
+
 	delete bestAnt;
 
 	return NO_ERROR;
@@ -640,7 +674,7 @@ float Graph::getLatestReliability()
 
 void Graph::printEdges()
 {
-	std::cout << "Edge "<<this<<std::endl;
+	std::cout << "Graph "<<this<<std::endl;
 	std::vector<Edge*>::iterator edgeIt;
 	for (edgeIt = edges.begin(); edgeIt != edges.end(); ++edgeIt)
 	{

@@ -52,7 +52,7 @@ sArgs parseArguments( int argv, char** argc )
 			else args.nbrAnts = 3;
 
 		}
-		else if ( strcmp(argc[i], "--percolation") == 0 )
+		else if ( strcmp(argc[i], "-percolation") == 0 )
 			args.mode = PERCOLATION;
 		else if ( strcmp(argc[i], "--raw")==0 || strcmp(argc[i], "-r")==0 )
 		{

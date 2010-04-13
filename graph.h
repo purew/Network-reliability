@@ -59,12 +59,16 @@ public:
 	double getReliability() {return reliability;};
 
 	/** Get the pheromones on this link for the chosen level. Level=0 means link is not used. */
-	float getTau(int level) {return acoTau[level];};
+	float getTau(int level) {return tau[level];};
 	/** Return the sum of the pheromones over all working levels.*/
 	float getSumTau();
 	/** Set the pheromones on this link the chosen level. Level=0 means link is not used. */
 	void setTau(int level, float tau );
-
+	/** Add a delta tau, use this when iterating over all edges. Then finally apply it with updateTau().*/
+	void addDeltaTau(int level, float deltaTau);
+	/** After adding pheromones with addDeltaTau, finally apply it with this function.
+		rho decides how fast old trails evaporated. */
+	void updateTau( float rho );
 	/** Set the probability to choose this link from origin-node. */
 	void acoSetPFromNode( int origin, float p) {(origin==n[0])? acoP[0]=p: acoP[1]=p;};
 	/** Get the probability to choose this link from origin-node. */
@@ -81,7 +85,9 @@ private:
     double reliability;
 
 
-	float *acoTau;		//!< The pheromones on this link
+	float *tau;		//!< The pheromones on this link
+	float *deltaTau;	//!< The new pheromones, not yet applied
+
 	/** acoP[i] is the probability of this link to be chosen from node i */
 	float acoP[2];
 };
