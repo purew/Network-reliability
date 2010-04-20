@@ -1,16 +1,31 @@
-
-
-A research project dedicated to examining the reliability of certain network
-structures using optimization techniques such as Ant Colony Optimization.
-
-Run ant colony on a nwk-file by entering:
-	./main -f <nwk-file> -aco <max wanted links> <iterations> <ants>
-
-If the graphical frontend is wanted, glfw, glpng, freetype6 are required libraries.
-
+== Introduction ==
+A research project dedicated to estimating and optimizing the reliability
+of certain network structures using Ant Colony Optimization.
 
 By Anders Bennehag, Hong Kong University of Science and Technology
 
 Copyright (c) 2010 Anders Bennehag
 Licensed under the MIT license
 http://www.opensource.org/licenses/mit-license.php
+
+
+
+== Generate a Network ==
+To generate a network, the python-script generateNetwork.py can be used:
+	./generateNetwork.py <type> <cells wide> <rotations> <cells high>
+	where 	<type> is one of {chain, ring, cylinder, toroid}
+			<rotations> is only valid for the ring
+
+== Reliability and Optimization ==
+The Ant colony algorithm is implemented in the C-program main.cpp which calls 
+other functions in graph.h. Compile with 
+	make
+	
+To calculate the reliability with Monte carlo, run:
+	./main -f <nwk-file>
+	where <nwk-file> may have been generated from generateNetwork.py
+	
+Run ant colony on a network with:
+	./main -f <nwk-file> -aco <max wanted links> <iterations> <ants>
+
+

@@ -341,8 +341,8 @@ int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 	float rho = 0.80; 	// How fast old trails evaporate
 	int MCiterations = 1e4;	// How many iterations performed in Monte carlo
 								// TODO: Should probably depend on number of links
-	float a = 1000;		// Exponent to C/C*
-	float b = a;		// Exponent to reliability/bestReliability
+	//float a = 1000;		// Exponent to C/C*
+	float b = 1000;		// Exponent to reliability/bestReliability
 
 
 
@@ -491,7 +491,7 @@ int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 				float reliability = (*antIt)->getLatestReliability();
 				float D = pow(reliability/bestReliability, b);
 
-				deltaTau[i][level] += Q*D;
+				//deltaTau[i][level] += Q*D;
 
 			}
 
@@ -525,11 +525,11 @@ int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 			}
 		}
 
-
+		/*
 		std::ofstream f("data/reliability.graph", std::ios_base::app);
 		f << bestReliability << " ";
 		f.close();
-
+		*/
 		//std::cout << "Starting new iteration\n";
 	}
 
