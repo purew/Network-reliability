@@ -1,0 +1,12 @@
+
+Generates the number of networks given a certain link densitiy l/l_max. Will check against rotational symmetries (assumes a circular network) but not mirrored symmetries (yet).
+
+Usage:
+	./degeneracyCounter <# nodes> [# links]
+		Number of links is optional. No amount specified will make the program to iterate over all 			links.
+
+Copyright (c) 2010 Anders Bennehag
+Licensed under the MIT license
+http://www.opensource.org/licenses/mit-license.php
+
+
