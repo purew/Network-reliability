@@ -10,8 +10,6 @@
 #	http://www.opensource.org/licenses/mit-license.php
 #
 
-# TODO make_ring creates duplicate south links when connecting the sides
-
 import sys
 
 def save_network( network, filename, options):

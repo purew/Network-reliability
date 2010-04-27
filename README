@@ -1,6 +1,5 @@
 == Introduction ==
-A research project dedicated to estimating and optimizing the reliability
-of certain network structures using Ant Colony Optimization.
+A research project dedicated to estimating and optimizing the reliability of certain network structures using Ant Colony Optimization.
 
 By Anders Bennehag, Hong Kong University of Science and Technology
 
@@ -17,8 +16,7 @@ To generate a network, the python-script generateNetwork.py can be used:
 			<rotations> is only valid for the ring
 
 == Reliability and Optimization ==
-The Ant colony algorithm is implemented in the C-program main.cpp which calls 
-other functions in graph.h. Compile with 
+The Ant colony algorithm is implemented in the C-program main.cpp which calls other functions in graph.h. Compile with 
 	make
 	
 To calculate the reliability with Monte carlo, run:
@@ -28,4 +26,7 @@ To calculate the reliability with Monte carlo, run:
 Run ant colony on a network with:
 	./main -f <nwk-file> -aco <max wanted links> <iterations> <ants>
 
-
+== Generate many networks and estimate reliability ==
+The script iterNetworks.py will iterate over different widths and heights for a given topology type. Set the parameters in the beginning of the file and run the command with:
+	./iterNetworks.py [<cached>]
+		If any argument is given, the program will used cached data and immediately start plotting.
