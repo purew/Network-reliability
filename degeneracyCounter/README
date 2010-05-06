@@ -2,8 +2,12 @@
 Generates the number of networks given a certain link densitiy l/l_max. Will check against rotational symmetries (assumes a circular network) but not mirrored symmetries (yet).
 
 Usage:
-	./degeneracyCounter <# nodes> [# links]
-		Number of links is optional. No amount specified will make the program to iterate over all 			links.
+	degeneracyCounter <# nodes> [<# links>] [<prob. p of failure>] [<Q>]
+		-number of links is optional, and if not defined or set to -1, D is calculated for all l's
+		-probability p of failure is optional and defaults to 0.800000
+		-number of iterations, Q, when estimating reliability, defaults to 100
+
+
 
 Copyright (c) 2010 Anders Bennehag
 Licensed under the MIT license

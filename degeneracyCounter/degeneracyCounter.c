@@ -19,18 +19,29 @@
 */
 
 #include <math.h>
-//#include "databank.h"
+#include <time.h>
+#include "mt64/mt64.h"
 #include "graphTools.h"
 #include "binaryTree.h"
 
-int findDegeneracy(int N, int l)
+typedef struct
+{
+	int D;
+	float bestR;
+} degeneracy;
+
+degeneracy findDegeneracy(int N, int l, float p, int Q)
 {
 	node* tree=0;
+	state64 rndState;
+	init_genrand64( &rndState, time(0));
 
 	// Start the real algorithm
 
 	graph *V = initGraph(N,l);
-	int D=0;
+	degeneracy deg = {0, 0};
+	//deg.D=0;
+	//deg.bestR = 0;
 
 	do {
 		char *str = printGraph( V );
@@ -41,8 +52,14 @@ int findDegeneracy(int N, int l)
 		}
 
 		// If we reached this point, this network is unique and we should count it
-		D += 1;
+		deg.D += 1;
+		float R = estReliability(V,Q, p, &rndState);
 
+		if ( R>deg.bestR )
+		{
+
+			deg.bestR = R;
+		}
 		/*printf("  databank: ");
 		for (int i=0; i < db->index; ++i )
 			printf("%i ",db->A[i]);
@@ -54,16 +71,22 @@ int findDegeneracy(int N, int l)
 	deleteTree(tree);
 	removeGraph( V );
 
-	return D;
+	return deg;
 }
 
 int main( int argc, char** argv )
 {
-	if (argc<2 || argc>3)
+	float p = 0.8;
+	int l = -1;
+	int Q = 100;
+
+	if (argc<2 || argc>5)
 	{
 		printf("Use the following syntax:\n");
-		printf("    degeneracyCounter <number of nodes> [<number of links>]\n");
-		printf("    number of links is optional, and if not defined or set to -1, D is calculated for all l's\n");
+		printf("\t\tdegeneracyCounter\n\t<number of nodes>\n\t[<number of links>]\n\t[<prob. p of failure>]\n\t[<Q>]\n");
+		printf("\t\t-number of links is optional, and if not defined or set to -1, D is calculated for all l's\n");
+		printf("\t\t-probability p of failure is optional and defaults to %f\n",p);
+		printf("\t\t-number of iterations when estimating reliability, defaults to %i\n",Q);
 		return 0;
 	}
 	int N = atoi( argv[1] );
@@ -72,22 +95,28 @@ int main( int argc, char** argv )
 		N = Nmax;
 		printf("N is bigger than %i which is the largest supported number\n    Resetting to %i\n",Nmax,Nmax);
 	}
-	int l = -1;
-	if (argc == 3)
+	if (argc >= 3)
 		l = atoi( argv[2] );
+
+	if (argc >= 4)
+		p = atof( argv[3] );
+	if (argc >= 5)
+		Q = atoi( argv[4] );
 
 	if ( l==-1 )
 	{
+		//printf("N\tl\tD\tRbest\n");
 		for ( int k=0; k <= N*(N-1)/2; ++k )
 		{
-			int D = findDegeneracy(N,k);
-			printf("%i %i %i\n", N,k,D);
+			degeneracy deg = findDegeneracy(N,k, p, Q);
+			printf("%i\t%i\t%i\t%f\n", N,k,deg.D, deg.bestR);
 		}
 	}
 	else
 	{
-		int D = findDegeneracy(N,l);
-		printf( "The degeneracy for a %i-node network with %i links is %i\n",N,l,D);
+		degeneracy deg = findDegeneracy(N,l,p,Q);
+		printf( "The degeneracy for a %i-node network with %i links is %i\n",N,l,deg.D);
+		printf( "And the best reliability is %f\n", deg.bestR);
 	}
 
 

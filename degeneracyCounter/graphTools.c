@@ -5,6 +5,7 @@
 */
 
 
+#include "mt64/mt64.h"
 #include "graphTools.h"
 
 
@@ -219,4 +220,64 @@ void offsetGraph( graph *V, graph *Vmod, int offset, int dir)
 				setConnected( Vmod, i-offset,j-offset,ijConn);*/
 		}
 	return;
+}
+
+void unfoldGraph( graph *V, char nodesVisited[], int node )
+{
+	nodesVisited[node] = 1;
+	// Starting from node, unfold towards later nodes
+	for (int i=0; i < V->nbrNodes; ++i)
+	{
+		if ( i== node )
+			continue;
+		if ( isConnected(V,i,node) && nodesVisited[i]==0 )
+			unfoldGraph( V, nodesVisited, i );
+	}
+	return;
+}
+char isFullyConnected( graph* V )
+{
+	char nodesVisited[V->nbrNodes];
+	for (int i=0; i < V->nbrNodes; ++i)
+		nodesVisited[i] = 0;
+	// Test for full connectivity
+	unfoldGraph( V,nodesVisited, 0);
+	for (int i=0; i < V->nbrNodes; ++i)
+	{
+		if ( nodesVisited[i]==0 )
+			return 0;
+	}
+	return 1;
+}
+
+float estReliability( graph* V, int Q, float p, state64 *rndState )
+{
+	// Do one test on the unmodified network to see if it's even
+	// possible to have full connectivity
+	if ( isFullyConnected(V) == 0 )
+		return 0.0;
+	// Else it is working and we can start estimating
+	int iR = 0;
+	for (int i=0; i<Q; ++i)
+	{
+		// Copy V
+		graph *Vmod = malloc( sizeof(Vmod));
+		Vmod->length = V->length;
+		Vmod->nbrNodes = V->nbrNodes;
+		Vmod->data = malloc( sizeof(char)*Vmod->length);
+		for (int i=0; i < Vmod->length; ++i)
+			Vmod->data[i] = V->data[i];
+
+
+
+		for ( int l=0; l < Vmod->length; ++l )
+		{
+			if (Vmod->data[l]==1 && genrand64_real2(rndState)>p )
+				Vmod->data[l] =0;
+		}
+		iR += isFullyConnected(Vmod);
+
+		removeGraph( Vmod );
+	}
+	return (float)(iR)/Q;
 }

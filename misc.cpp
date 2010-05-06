@@ -21,7 +21,7 @@ sArgs parseArguments( int argv, char** argc )
 			if (i+1<argv)
 				args.filename = argc[i+1];
 		}
-		else if ( strcmp(argc[i], "--aco") == 0 )
+		else if ( strcmp(argc[i], "-aco") == 0 )
 		{
 			if ( i+1<argv )
 			{

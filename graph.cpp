@@ -491,7 +491,7 @@ int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 				float reliability = (*antIt)->getLatestReliability();
 				float D = pow(reliability/bestReliability, b);
 
-				//deltaTau[i][level] += Q*D;
+				deltaTau[i][level] += Q*D;
 
 			}
 
@@ -538,7 +538,7 @@ int acoFindOptimal( Graph *nw, int Nmax, int nbrAnts, int maxLinksInSolution )
 	std::cout << "All links:\n";
 	nw->printEdges();
 
-	bestAnt->estReliabilityMC(10*MCiterations,false);
+	bestAnt->estReliabilityMC(100*MCiterations,false);
 
 
 	delete bestAnt;

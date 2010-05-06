@@ -21,7 +21,7 @@
 #define GRAPHTOOLS_H_
 
 #include <math.h>
-//#import "databank.h"
+#include "mt64/mt64.h"
 #include "binaryTree.h"
 
 /** This number CANNOT be changed. The hash technique in this algorithm
@@ -69,5 +69,8 @@ int isSymmetric( graph *V, node **tree );
 
 /** Creates a copy of the network where the network is offsetted, ie. a symmetric copy */
 void offsetGraph( graph *V, graph *Vmod, int offset, int dir);
+
+/** Estimate the reliability from Q monte carlo iterations, where each link has reliability p.*/
+float estReliability( graph* V, int Q, float p,state64 *rndState);
 
 #endif
