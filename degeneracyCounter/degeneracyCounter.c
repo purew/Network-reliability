@@ -56,10 +56,8 @@ degeneracy findDegeneracy(int N, int l, float p, int Q)
 		float R = estReliability(V,Q, p, &rndState);
 
 		if ( R>deg.bestR )
-		{
-
 			deg.bestR = R;
-		}
+
 		/*printf("  databank: ");
 		for (int i=0; i < db->index; ++i )
 			printf("%i ",db->A[i]);

@@ -79,13 +79,15 @@ char *privNodesConnected(graph *V, int i, int j)
 		}
 	}
 
+	// Convert from adjacency matrix to 1d-vector
 	int index = i*V->nbrNodes-sumUpTo(i+1)+j;
 	if ( index >= V->length )
 	{
 		printf( "ERROR: isConnected(): index >= V->length\n" );
 		return 0;
 	}
-	return &(V->data[index]);
+	else
+		return &(V->data[index]);
 }
 char isConnected(graph *V, int i, int j)
 {
@@ -174,7 +176,8 @@ int isSymmetric( graph *V, node **tree )
 	long long minHash=readAsInt( V );
 
 	// Offset the links in the network: link 1-2 becomes 2-3 etc
-	for (int i=0;i < V->nbrNodes; ++i)
+	for (int i=1;i < V->nbrNodes; ++i)
+	{
 		// We cannot detect rotational symmetries yet
 		// And does this way even work?
 
@@ -187,6 +190,7 @@ int isSymmetric( graph *V, node **tree )
 			minHash = hash;
 
 		}
+	}
 	if ( hasNum(*tree, minHash) )
 		return 1;
 	else
