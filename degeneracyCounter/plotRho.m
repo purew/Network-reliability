@@ -1,17 +1,17 @@
  
 
 %clf
-A = load('result_symm');
+A = load('result');
 %result = A
 opt = '-r';
 
 plotdim = [1 3];
 %subplot(plotdim(1),plotdim(2),1)
-plot(A(:,2)/A(end,2),A(:,3), opt)
+plot(A(:,2)/A(end,2),A(:,4), opt)
 hold on
-%title('The degeneracy for a circular 7-node network')
+title('R_{max}(\rho) for a circular 7-node network')
 xlabel('\rho(l)')
-ylabel('D - number of possible networks')
+ylabel('R_{max}(\rho)')
 
 % 
 % subplot(plotdim(1),plotdim(2),2)
